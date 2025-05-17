@@ -1,6 +1,6 @@
 # Project setup
 
-Komodo Wallet is a cross-platform application, meaning it can be built for multiple target platforms using the same code base. It is important to note that some target platforms may only be accessible from specific host platforms. Below is a list of all supported host platforms and their corresponding target platforms:
+Cheetahdex Wallet is a cross-platform application, meaning it can be built for multiple target platforms using the same code base. It is important to note that some target platforms may only be accessible from specific host platforms. Below is a list of all supported host platforms and their corresponding target platforms:
 
 | Host Platform | Target Platform                  |
 | ------------- | -------------------------------- |
