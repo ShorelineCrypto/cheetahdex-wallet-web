@@ -2,8 +2,8 @@
 Version=1.0
 Type=Application
 Name=Cheetahdex Wallet
-Exec=./KomodoWallet
-Icon=./KomodoWallet.svg
+Exec=./CheetahdexWallet
+Icon=./CheetahdexWallet.svg
 Categories=Office;Finance;
 Terminal=false
 StartupNotify=true

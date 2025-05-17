@@ -124,7 +124,7 @@ List<String> get enabledByDefaultTrezorCoins => [
 List<String> get coinsWithFaucet => ['RICK', 'MORTY', 'DOC', 'MARTY'];
 
 const String logsDbName = 'logs';
-const String appFolder = 'KomodoWallet';
+const String appFolder = 'CheetahdexWallet';
 
 Future<String> get applicationDocumentsDirectory async => kIsWeb
     ? appFolder
