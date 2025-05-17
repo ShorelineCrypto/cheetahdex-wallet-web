@@ -24,8 +24,8 @@ const Duration kPerformanceLogInterval = Duration(minutes: 1);
 // This information is here because it is not contextual and is branded.
 // Names of their own are not localized. Also, the application is initialized before
 // the localization package is initialized.
-String get appTitle => "Komodo Wallet | Non-Custodial Multi-Coin Wallet & DEX";
-String get appShortTitle => "Komodo Wallet";
+String get appTitle => "Cheetahdex Wallet | Non-Custodial Multi-Coin Wallet & DEX";
+String get appShortTitle => "Cheetahdex Wallet";
 
 // We're using a hardcoded seed for the hidden login instead
 // of generating it on the fly. This will allow us to access
@@ -108,14 +108,9 @@ const List<String> appWalletOnlyAssetList = [
 ];
 
 List<String> get enabledByDefaultCoins => [
-      'BTC-segwit',
       'KMD',
-      'LTC-segwit',
-      'ETH',
-      'MATIC',
-      'BNB',
-      'AVAX',
-      'FTM',
+      'CHTA',
+      'NENG',
       if (kDebugMode || kProfileMode) 'DOC',
       if (kDebugMode || kProfileMode) 'MARTY',
     ];
@@ -129,7 +124,7 @@ List<String> get enabledByDefaultTrezorCoins => [
 List<String> get coinsWithFaucet => ['RICK', 'MORTY', 'DOC', 'MARTY'];
 
 const String logsDbName = 'logs';
-const String appFolder = 'KomodoWallet';
+const String appFolder = 'CheetahdexWallet';
 
 Future<String> get applicationDocumentsDirectory async => kIsWeb
     ? appFolder

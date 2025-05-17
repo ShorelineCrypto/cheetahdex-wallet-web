@@ -16,7 +16,7 @@ final List<String> testsList = [
 
 //app data path for mac and linux
 const String macAppData = '/Library/Containers/com.komodo.komodowallet';
-const String linuxAppData = '/.local/share/com.komodo.KomodoWallet';
+const String linuxAppData = '/.local/share/com.komodo.CheetahdexWallet';
 const String windowsAppData = '\\AppData\\Roaming\\com.komodo';
 
 const String suspendedCoin = 'KMD';

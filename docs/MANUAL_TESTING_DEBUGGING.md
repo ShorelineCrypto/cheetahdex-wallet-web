@@ -117,7 +117,7 @@ At the time of writing used branch [gen-recoverable-swap](https://github.com/Kom
       ```
 
   5. Copy swap with for your seedphrase to 'assets/debug_data.json', see [Debug Login](#debug-login)
-  6. Run Komodo Wallet in debug mode and click 'Debug Login' button in the top right corner
+  6. Run Cheetahdex Wallet in debug mode and click 'Debug Login' button in the top right corner
   7. Imported swaps should appear in history on the DEX page
 
   Explanation for env variables:

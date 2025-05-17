@@ -87,7 +87,7 @@ class CopyPlatformAssetsBuildStep extends BuildStep {
   }
 
   late final File _sourceIcon =
-      File(path.joinAll([projectRoot, "linux", "KomodoWallet.svg"]));
+      File(path.joinAll([projectRoot, "linux", "CheetahdexWallet.svg"]));
 
   late final File _destIcon = File(path.joinAll([
     projectRoot,
@@ -96,11 +96,11 @@ class CopyPlatformAssetsBuildStep extends BuildStep {
     "x64",
     "release",
     "bundle",
-    "KomodoWallet.svg"
+    "CheetahdexWallet.svg"
   ]));
 
   late final File _sourceDesktop =
-      File(path.joinAll([projectRoot, "linux", "KomodoWallet.desktop"]));
+      File(path.joinAll([projectRoot, "linux", "CheetahdexWallet.desktop"]));
 
   late final File _destDesktop = File(path.joinAll([
     projectRoot,
@@ -109,6 +109,6 @@ class CopyPlatformAssetsBuildStep extends BuildStep {
     "x64",
     "release",
     "bundle",
-    "KomodoWallet.desktop"
+    "CheetahdexWallet.desktop"
   ]));
 }
