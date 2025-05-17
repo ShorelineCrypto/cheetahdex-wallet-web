@@ -259,7 +259,7 @@ flutter:
     - assets/fiat/providers/
     - assets/packages/flutter_inappwebview_web/assets/web/
 
-    # Komodo Wallet build transformer configuration. This handles all build-time
+    # Cheetahdex Wallet build transformer configuration. This handles all build-time
     # dependencies, such as fetching coin assets, platform-specific assets, and
     # more. This replaces the complicated build process that was previously
     # required running multiple scripts and manual steps.

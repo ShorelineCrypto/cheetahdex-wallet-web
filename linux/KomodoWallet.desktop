@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Komodo Wallet
+Name=Cheetahdex Wallet
 Exec=./KomodoWallet
 Icon=./KomodoWallet.svg
 Categories=Office;Finance;

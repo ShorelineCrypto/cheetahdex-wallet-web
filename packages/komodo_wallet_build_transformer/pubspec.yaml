@@ -1,5 +1,5 @@
 name: komodo_wallet_build_transformer
-description: A build transformer for Komodo Wallet used for managing all build-time dependencies.
+description: A build transformer for Cheetahdex Wallet used for managing all build-time dependencies.
 version: 0.0.1
 # repository: https://github.com/my_org/my_repo
 publish_to: "none"

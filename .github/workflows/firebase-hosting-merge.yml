@@ -51,7 +51,7 @@ jobs:
           flutter pub get > /dev/null 2>&1
           echo "Done fetching packages and generating assets"
 
-      - name: Build Komodo Wallet web
+      - name: Build Cheetahdex Wallet web
         run: |
           flutter doctor -v
           flutter build web --csp --profile --no-web-resources-cdn
@@ -90,7 +90,7 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy Komodo Wallet Web dev preview (`dev` branch)
+      - name: Deploy Cheetahdex Wallet Web dev preview (`dev` branch)
         if: github.ref == 'refs/heads/dev'
         uses: FirebaseExtended/action-hosting-deploy@v0.7.1
         with:
@@ -100,7 +100,7 @@ jobs:
           target: walletrc
           projectId: komodo-wallet-official
 
-      - name: Deploy Komodo Wallet Web RC (`master` branch)
+      - name: Deploy Cheetahdex Wallet Web RC (`master` branch)
         if: github.ref == 'refs/heads/master'
         uses: FirebaseExtended/action-hosting-deploy@v0.7.1
         with:
