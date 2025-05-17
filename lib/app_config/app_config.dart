@@ -108,14 +108,9 @@ const List<String> appWalletOnlyAssetList = [
 ];
 
 List<String> get enabledByDefaultCoins => [
-      'BTC-segwit',
       'KMD',
-      'LTC-segwit',
-      'ETH',
-      'MATIC',
-      'BNB',
-      'AVAX',
-      'FTM',
+      'CHTA',
+      'NENG',
       if (kDebugMode || kProfileMode) 'DOC',
       if (kDebugMode || kProfileMode) 'MARTY',
     ];
