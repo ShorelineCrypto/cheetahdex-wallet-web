@@ -16,6 +16,24 @@ Welcome to the Cheetahdex Web Wallet open-source repository! This cutting-edge p
 - Self-hosted at your home linux server/cloud: follow INSTALL.md and below Developer guide to run your own cheetahdex web wallet app at your home or at cloud VPS
 ----
 
+### Support on Cheetahdex Web Wallet
+
+Please join below discord server for support, discussions and general UI/UX
+feedback.
+
+- ShorelineCrypto Discord Server: https://discord.com/invite/jZMyhKm
+- Komodo Wallet Discord Server: https://komodoplatform.com/discord
+
+## Useful links
+
+- :speech_balloon: [Cheetahdex Wallet Discord](https://discord.com/invite/jZMyhKm)
+- :notebook_with_decorative_cover: [ShorelineCrypto Reddit](https://www.reddit.com/r/shorelinecrypto/)
+- :hammer_and_wrench: [ShorelineCrypto X](https://x.com/shorelinecrypto)
+- :book: [Atomicdex Wallet Documentation](https://developers.komodoplatform.com/basic-docs/atomicdex/atomicdex-tutorials/introduction-to-atomicdex.html)
+- :link: [Komodo Wallet Website](https://komodoplatform.com/en/wallet/)
+- :speech_balloon: [Komodo Wallet Discord](https://komodoplatform.com/discord)
+
+
 ## Developer guide.
 
 Current Komodo Web Wallet production version is available here: https://app.komodoplatform.com
