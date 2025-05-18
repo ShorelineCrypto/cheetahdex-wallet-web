@@ -6,13 +6,13 @@ Cheetahdex Web Wallet pretty much preserved all the features in the open sourced
 
 ## Hardware Requirement - X86_64 Linux server at home or at cloud VPS
 
-The whole package was tested successfully in linux (ubuntu 22.04) on x64 hardware. Cheetahdex Web Wallet app does not uses
+The whole package was tested successfully in linux (ubuntu 22.04) on x64 hardware. Cheetahdex Web Wallet app does not use
 lots of disk space, nor CPU resources so that any reasonable home PC linux or linux on cloud VPS should work fine.
 
 ## Dependency Requirement - flutter and android-studio
 Cheetahdex Web Wallet app is flutter based app.  You can compile and run self-hosted web app in Ubuntu 22.04 easily by meeting flutter and android-studio 
 requirement below. Check out Komodo Developer Guide on README for details.
-- Install last version of android studio.  For easily navigate and install proper features of android-studio, a x-windows GUI on Ubuntu is recommended.
+- Install latest version of android studio.  For easily navigate and install proper features of android-studio, a x-windows GUI on Ubuntu is recommended.
 - Install flutter on proper version under your home directory.  Too new or too old version of flutter won't compile this release.
 
 Finally, check dependency with below command:
@@ -84,7 +84,7 @@ To compile your self-hosted web app, run below
   flutter build web --csp --no-web-resources-cdn
 ```
 
-The above web compiling step includes downloading latest Komodo coins repo with 400+ coin logo images downloading from github api.  Github imposed rate limit on raw file downloading recently so that above step will crash at middle of coins logo image downloading step.
+The above web compiling step includes downloading latest Komodo coins repo with 400+ coin logo images through github api.  Github imposed rate limit on raw file downloading recently so that above step will crash at middle of coins logo image downloading step.
 
 ## Step 2 - Workaround to bypass github downloading limit
 
@@ -109,7 +109,7 @@ run below:
   flutter run -d  web-server  --web-hostname  localhost --web-port=8888  --release
 ```
 
-Now Cheetahdex Web Wallet should be running at "http://localhost:8888" URL.  Change localhost into IP address or your hostname. 
+Now Cheetahdex Web Wallet should be running at "http://localhost:8888" web URL.  Change localhost into IP address or your hostname. 
 
 
 
