@@ -1,26 +1,24 @@
-# Cheetahdex Wallet & DEX
+# Cheetahdex Web Wallet & DEX
 
-[![style: very good analysis](https://img.shields.io/badge/style-very_good_analysis-B22C89.svg)](https://pub.dev/packages/very_good_analysis)
+<p align="center">
+    <a href="https://github.com/ShorelineCrypto/cheetahdex-wallet-web" alt="Cheetahdex Web Wallet">
+        <img width="420" alt="cheetahdex-wallet-logo_dark-theme" src="https://raw.githubusercontent.com/ShorelineCrypto/cheetahdex-wallet-desktop/cheetahdex/assets/logo/dex-logo.png">
+    </a>
+</p>
 
-<a href="https://app.komodoplatform.com" target="_blank">![web_app](https://github.com/KomodoPlatform/komodo-wallet-archive/assets/10762374/ca06f4bc-2e7a-40c6-9e06-e0872a32cbdf)</a>
+Cheetahdex Web Wallet is open-sourced non-custodian wallet with 100% account seed compatibility with Komodo Web Wallet.  Not your keys, not your coins!
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/KomodoPlatform/komodo-wallet?quickstart=1)
+Welcome to the Cheetahdex Web Wallet open-source repository! This cutting-edge project is brought to you by ShorelineCrypto, providing a mighty non-custodial wallet and decentralised exchange all on web app. Take control of your cryptocurrencies and trade seamlessly in DEX on your self-hosted web app or on ShorelineCrypto web app.
+
 
 ### Runs on: 
- - [Web](https://app.komodoplatform.com)
- - Desktop
-   - Windows
-   - MacOS
-   - Linux
- - Mobile
-   - Android
-   - iOS
-
+- ShorelineCrypto Live Web App:  https://app.shorelinecrypto.com
+- Self-hosted at your home linux server/cloud: follow INSTALL.md and below Developer guide to run your own cheetahdex web wallet app at your home or at cloud VPS
 ----
 
 ## Developer guide.
 
-Current production version is available here: https://app.komodoplatform.com
+Current Komodo Web Wallet production version is available here: https://app.komodoplatform.com
 
 ### Index
 - [Code of Conduct](docs/CODE_OF_CONDUCT.md)
