@@ -1,6 +1,6 @@
 {
     "api": {
-        "api_commit_hash": "8206c6ef61ee5c0f697fab5fcfd7256e3ebe13ac",
+        "api_commit_hash": "c800ea03f12dab33d2dc04a1d858ee6da111203f",
         "branch": "main",
         "fetch_at_build_enabled": true,
         "source_urls": [
@@ -11,7 +11,7 @@
             "web": {
                 "matching_keyword": "wasm",
                 "valid_zip_sha256_checksums": [
-                    "f82e330a8d9bc1c2011604648233922cf216a732858c5a6a935ad77a286b1993"
+                    "fcb2f9f0a2a1d5cfeee1968359a6b542c7743f3c157864be1fc274d8ccd24bab"
                 ],
                 "path": "web/src/mm2"
             }
