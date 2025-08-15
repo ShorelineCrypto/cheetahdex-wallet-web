@@ -22,7 +22,7 @@ enum FiatOrderStatus {
   failed,
 
   /// The user closed the payment window using the provider close button
-  /// or "return to Komodo Wallet" button
+  /// or "return to Cheetahdex Wallet" button
   windowCloseRequested;
 
   bool get isTerminal =>

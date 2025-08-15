@@ -44,7 +44,7 @@ jobs:
       - name: Validate build
         uses: ./.github/actions/validate-build
 
-      - name: Deploy Komodo Wallet Web dev preview (`dev` branch)
+      - name: Deploy Cheetahdex Wallet Web dev preview (`dev` branch)
         if: github.ref == 'refs/heads/dev'
         uses: FirebaseExtended/action-hosting-deploy@v0.7.1
         with:
@@ -54,7 +54,7 @@ jobs:
           target: walletrc
           projectId: komodo-wallet-official
 
-      - name: Deploy Komodo Wallet Web RC (`main` branch)
+      - name: Deploy Cheetahdex Wallet Web RC (`main` branch)
         if: github.ref == 'refs/heads/main'
         uses: FirebaseExtended/action-hosting-deploy@v0.7.1
         with:

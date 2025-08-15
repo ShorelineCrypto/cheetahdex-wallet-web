@@ -1,8 +1,8 @@
-# Build Security Advisory for Komodo Wallet
+# Build Security Advisory for Cheetahdex Wallet
 
 ## Critical Flags for Production Builds
 
-When building the Komodo Wallet for production, **always** use the following flags:
+When building the Cheetahdex Wallet for production, **always** use the following flags:
 
 ```bash
 --enforce-lockfile  # When running 'flutter pub get'

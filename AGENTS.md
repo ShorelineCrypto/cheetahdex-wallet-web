@@ -30,7 +30,7 @@ Unit tests and integration tests are currently failing. Instead of running tests
 
 Ensure you follow the existing architecture and style of the codebase. The codebase uses BLoC where applicable and follows general OOP/SOLID coding guidelines. Familiarise yourself with the BLoC conventions and Conventional Commits standards included at the end of this document.
 
-### Komodo Wallet
+### Cheetahdex Wallet
 
 This section is only relevant if you are working in the `komodo-wallet` repository:
 
