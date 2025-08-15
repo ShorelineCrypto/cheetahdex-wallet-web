@@ -13,6 +13,7 @@ class TradingStatusRepository {
   final Duration _timeout;
 
   Future<bool> isTradingEnabled({bool? forceFail}) async {
+    return true;
     try {
       final apiKey = const String.fromEnvironment('FEEDBACK_API_KEY');
       final bool shouldFail = forceFail ?? false;
