@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:rational/rational.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
-import 'package:web_dex/shared/widgets/auto_scroll_text.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/views/dex/dex_helpers.dart';
 
 class CoinTradeAmountFormField extends StatefulWidget {
@@ -44,8 +44,9 @@ class _CoinTradeAmountFormFieldState extends State<CoinTradeAmountFormField> {
 
   @override
   void dispose() {
-    _controller..removeListener(_inputChangedListener)
-    ..dispose();
+    _controller
+      ..removeListener(_inputChangedListener)
+      ..dispose();
     super.dispose();
   }
 
@@ -127,7 +128,8 @@ class TradeAmountFiatPriceText extends StatelessWidget {
     return Text(
       coin == null
           ? r'≈$0'
-          : getFormattedFiatAmount(coin!.abbr, amount ?? Rational.zero),
+          : getFormattedFiatAmount(
+              context, coin!.abbr, amount ?? Rational.zero),
       style: Theme.of(context).textTheme.bodySmall,
       overflow: TextOverflow.ellipsis,
     );
@@ -136,7 +138,7 @@ class TradeAmountFiatPriceText extends StatelessWidget {
 
 class TradeAmountTextFormField extends StatelessWidget {
   const TradeAmountTextFormField({
-    required this.controller, 
+    required this.controller,
     super.key,
     this.enabled = true,
   });

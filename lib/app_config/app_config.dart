@@ -8,16 +8,31 @@ final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 const double maxScreenWidth = 1273;
 const double mainLayoutPadding = 29;
 const double appBarHeight = 70;
+const int scaleOnInfinitePrecision = 20; // ETH has 18 decimals, so use more
 const String allWalletsStorageKey = 'all-wallets';
 const String defaultDexCoin = 'KMD';
+const String trezorWalletNamePrefix = 'my trezor';
 const List<Locale> localeList = [Locale('en')];
 const String assetsPath = 'assets';
+const String coinsAssetsPath = 'packages/komodo_defi_framework/assets';
 
-// Temporary feature flag to allow merging of the PR
-// TODO: Remove this flag after the feature is finalized
+final Uri discordSupportChannelUrl = Uri.parse(
+  'https://discord.com/channels/412898016371015680/429676282196787200',
+);
+final Uri discordInviteUrl = Uri.parse('https://komodoplatform.com/discord');
+
+/// Const to define if Bitrefill integration is enabled in the app.
 const bool isBitrefillIntegrationEnabled = false;
 
-const bool kIsWalletOnly = false;
+/// Const to define whether to show trading warning dialogs and notices.
+/// This can be used to control the display of trading-related warnings
+/// throughout the application.
+///
+///! You are solely responsible for any losses/damage that may occur due to
+///! compliance issues, bugs, or other unforeseen circumstances. Komodo
+///! Platform and its legal entities do not condone the use of this app for
+///! trading purposes where it is not legally compliant.
+const bool kShowTradingWarning = false;
 
 const Duration kPerformanceLogInterval = Duration(minutes: 1);
 
@@ -27,31 +42,59 @@ const Duration kPerformanceLogInterval = Duration(minutes: 1);
 String get appTitle => "Cheetahdex Wallet | Non-Custodial Multi-Coin Wallet & DEX";
 String get appShortTitle => "Cheetahdex Wallet";
 
-// We're using a hardcoded seed for the hidden login instead
-// of generating it on the fly. This will allow us to access
-// previously connected Trezor wallet accounts data and speed up
-// the reactivation of its coins.
-String get seedForHiddenLogin => 'hidden-login';
-
 Map<String, int> priorityCoinsAbbrMap = {
-  'KMD': 30,
-  'BTC-segwit': 20,
-  'ETH': 20,
-  'LTC-segwit': 20,
-  'USDT-ERC20': 20,
-  'BNB': 11,
-  'ETC': 11,
-  'DOGE': 11,
-  'DASH': 11,
-  'MATIC': 10,
-  'FTM': 10,
-  'ARB': 10,
-  'AVAX': 10,
-  'HT': 10,
-  'MOVR': 10,
+  // KMD always has highest priority (special case for Komodo ecosystem)
+  'KMD': 1000,
+
+  // Top 10 cryptocurrencies by market cap (as of current data)
+  // Rank 1: Bitcoin (~$2.21 trillion)
+  'BTC': 100,
+  'BTC-segwit': 100,
+
+  // Rank 2: Ethereum (~$335 billion)
+  'ETH': 90,
+
+  // Rank 3: Tether (~$159 billion)
+  'USDT': 80,
+  'USDT-ERC20': 80,
+  'USDT-PLG20': 80,
+  'USDT-BEP20': 80,
+
+  // Rank 4: XRP (~$145 billion)
+  'XRP': 70,
+
+  // Rank 5: BNB (~$93 billion)
+  'BNB': 60,
+
+  // Rank 6: Solana (~$84 billion)
+  'SOL': 50,
+
+  // Rank 7: USD Coin (~$63 billion)
+  'USDC': 40,
+  'USDC-ERC20': 40,
+  'USDC-PLG20': 40,
+  'USDC-BEP20': 40,
+
+  // Rank 8: TRON (~$27.5 billion)
+  'TRX': 30,
+
+  // Rank 9: Dogecoin (~$27.1 billion)
+  'DOGE': 20,
+
+  // Rank 10: Cardano (~$22.3 billion)
+  'ADA': 10,
+
+  // Additional coins with higher than default priority
+  'LTC-segwit': 5, // Litecoin (popular)
+  'LTC': 5,
+
+  // All other coins get default priority (0)
 };
 
-const List<String> excludedAssetList = [
+/// List of coins that are excluded from the list of coins displayed on the
+/// coin lists (e.g. wallet page, coin selection dropdowns, etc.)
+/// TODO: remove this list once zhltc and NFTs are fully supported in the SDK
+const Set<String> excludedAssetList = {
   'ADEXBSCT',
   'ADEXBSC',
   'BRC',
@@ -64,6 +107,8 @@ const List<String> excludedAssetList = [
   'FENIX',
   'AWR',
   'BOT',
+  // Pirate activation params are not yet implemented, so we need to
+  // exclude it from the list of coins for now.
   'ARRR',
   'ZOMBIE',
   'SMTF-v2',
@@ -72,23 +117,31 @@ const List<String> excludedAssetList = [
   'RICK',
   'MORTY',
 
-  // NFT v2 coins: https://github.com/KomodoPlatform/coins/pull/1061
-  // NFT upgrade is not merged yet, and the coins will likely be used in the
-  // background, so users do not need to see them.
+  // NFT v2 coins: https://github.com/KomodoPlatform/coins/pull/1061 will be
+  // used in the background, so users do not need to see them.
   'NFT_ETH',
   'NFT_AVAX',
   'NFT_BNB',
   'NFT_FTM',
   'NFT_MATIC',
+};
+
+/// Some coins returned by the Banxa API are returning errors when attempting
+/// to create an order. This is a temporary workaround to filter out those coins
+/// until the issue is resolved.
+const banxaUnsupportedCoinsList = [
+  'APE', // chain not configured for APE
+  'AVAX', // avax & bep20 - invalid wallet address error
+  'DOT', // bep20 - invalid wallet address error
+  'FIL', // bep20 - invalid wallet address error
+  'ONE', // invalid wallet address error (one**** (native) format expected)
+  'TON', // erc20 - invalid wallet address error
+  'TRX', // bep20 - invalid wallet address error
+  'XML', // invalid wallet address error
 ];
 
-const List<String> excludedAssetListTrezor = [
-  // https://github.com/KomodoPlatform/atomicDEX-API/issues/1510
-  'BCH',
-  // https://github.com/KomodoPlatform/coins/pull/619/files
-  // Can't use modified config directly, since it includes features,
-  // not implemented on webdex side yet (e.g. 0.4.2 doesn't have segwit)
-  'VAL',
+const rampUnsupportedCoinsList = [
+  'ONE', // invalid wallet address error (one**** format expected)
 ];
 
 // Assets in wallet-only mode on app level,
@@ -107,19 +160,15 @@ const List<String> appWalletOnlyAssetList = [
   'SUPERNET',
 ];
 
+/// Coins that are enabled by default on restore from seed or registration.
+/// This will not affect existing wallets.
 List<String> get enabledByDefaultCoins => [
-      'KMD',
-      'CHTA',
-      'NENG',
-      if (kDebugMode || kProfileMode) 'DOC',
-      if (kDebugMode || kProfileMode) 'MARTY',
-    ];
-
-List<String> get enabledByDefaultTrezorCoins => [
-      'BTC',
-      'KMD',
-      'LTC',
-    ];
+  'KMD', // Always included (Komodo ecosystem)
+  'CHTA', // Cheetahdex meme coin
+  'NENG', // Cheetahdex default coin
+  if (kDebugMode) 'DOC',
+  if (kDebugMode) 'MARTY',
+];
 
 List<String> get coinsWithFaucet => ['RICK', 'MORTY', 'DOC', 'MARTY'];
 

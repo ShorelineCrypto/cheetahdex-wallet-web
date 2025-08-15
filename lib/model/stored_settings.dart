@@ -8,17 +8,26 @@ class StoredSettings {
     required this.mode,
     required this.analytics,
     required this.marketMakerBotSettings,
+    required this.testCoinsEnabled,
+    required this.weakPasswordsAllowed,
+    required this.hideZeroBalanceAssets,
   });
 
   final ThemeMode mode;
   final AnalyticsSettings analytics;
   final MarketMakerBotSettings marketMakerBotSettings;
+  final bool testCoinsEnabled;
+  final bool weakPasswordsAllowed;
+  final bool hideZeroBalanceAssets;
 
   static StoredSettings initial() {
     return StoredSettings(
       mode: ThemeMode.dark,
       analytics: AnalyticsSettings.initial(),
       marketMakerBotSettings: MarketMakerBotSettings.initial(),
+      testCoinsEnabled: true,
+      weakPasswordsAllowed: false,
+      hideZeroBalanceAssets: false,
     );
   }
 
@@ -31,6 +40,9 @@ class StoredSettings {
       marketMakerBotSettings: MarketMakerBotSettings.fromJson(
         json[storedMarketMakerSettingsKey],
       ),
+      testCoinsEnabled: json['testCoinsEnabled'] ?? true,
+      weakPasswordsAllowed: json['weakPasswordsAllowed'] ?? false,
+      hideZeroBalanceAssets: json['hideZeroBalanceAssets'] ?? false,
     );
   }
 
@@ -39,6 +51,9 @@ class StoredSettings {
       'themeModeIndex': mode.index,
       storedAnalyticsSettingsKey: analytics.toJson(),
       storedMarketMakerSettingsKey: marketMakerBotSettings.toJson(),
+      'testCoinsEnabled': testCoinsEnabled,
+      'weakPasswordsAllowed': weakPasswordsAllowed,
+      'hideZeroBalanceAssets': hideZeroBalanceAssets,
     };
   }
 
@@ -46,12 +61,19 @@ class StoredSettings {
     ThemeMode? mode,
     AnalyticsSettings? analytics,
     MarketMakerBotSettings? marketMakerBotSettings,
+    bool? testCoinsEnabled,
+    bool? weakPasswordsAllowed,
+    bool? hideZeroBalanceAssets,
   }) {
     return StoredSettings(
       mode: mode ?? this.mode,
       analytics: analytics ?? this.analytics,
       marketMakerBotSettings:
           marketMakerBotSettings ?? this.marketMakerBotSettings,
+      testCoinsEnabled: testCoinsEnabled ?? this.testCoinsEnabled,
+      weakPasswordsAllowed: weakPasswordsAllowed ?? this.weakPasswordsAllowed,
+      hideZeroBalanceAssets:
+          hideZeroBalanceAssets ?? this.hideZeroBalanceAssets,
     );
   }
 }

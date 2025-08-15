@@ -2,30 +2,36 @@ import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:rational/rational.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
 import 'package:web_dex/bloc/taker_form/taker_bloc.dart';
 import 'package:web_dex/bloc/taker_form/taker_event.dart';
 import 'package:web_dex/bloc/taker_form/taker_state.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/trading_status/trading_status_bloc.dart';
+import 'package:web_dex/blocs/trading_entities_bloc.dart';
+import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
+import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
+import 'package:web_dex/analytics/events/transaction_events.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/dex_form_error.dart';
 import 'package:web_dex/model/trade_preimage.dart';
+import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/router/state/routing_state.dart';
 import 'package:web_dex/shared/ui/ui_light_button.dart';
 import 'package:web_dex/shared/utils/balances_formatter.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
+import 'package:web_dex/shared/widgets/coin_item/coin_item.dart';
 import 'package:web_dex/shared/widgets/coin_item/coin_item_size.dart';
 import 'package:web_dex/shared/widgets/segwit_icon.dart';
-import 'package:web_dex/shared/widgets/coin_item/coin_item.dart';
 import 'package:web_dex/views/dex/dex_helpers.dart';
 import 'package:web_dex/views/dex/simple/form/taker/taker_form_exchange_rate.dart';
 import 'package:web_dex/views/dex/simple/form/taker/taker_form_total_fees.dart';
-import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 
 class TakerOrderConfirmation extends StatefulWidget {
-  const TakerOrderConfirmation({Key? key}) : super(key: key);
+  const TakerOrderConfirmation({super.key});
 
   @override
   State<TakerOrderConfirmation> createState() => _TakerOrderConfirmationState();
@@ -34,6 +40,7 @@ class TakerOrderConfirmation extends StatefulWidget {
 class _TakerOrderConfirmationState extends State<TakerOrderConfirmation> {
   @override
   Widget build(BuildContext context) {
+    final coinsBloc = RepositoryProvider.of<CoinsRepo>(context);
     return Container(
       padding: EdgeInsets.only(top: isMobile ? 18.0 : 9.00),
       constraints: BoxConstraints(maxWidth: theme.custom.dexFormWidth),
@@ -124,6 +131,9 @@ class _TakerOrderConfirmationState extends State<TakerOrderConfirmation> {
   }
 
   Widget _buildConfirmButton() {
+    final tradingStatusState = context.watch<TradingStatusBloc>().state;
+    final bool tradingEnabled = tradingStatusState.isEnabled;
+
     return BlocSelector<TakerBloc, TakerState, bool>(
       selector: (state) => state.inProgress,
       builder: (context, inProgress) {
@@ -142,8 +152,12 @@ class _TakerOrderConfirmationState extends State<TakerOrderConfirmation> {
                       ),
                     )
                   : null,
-              onPressed: inProgress ? null : () => _startSwap(context),
-              text: LocaleKeys.confirm.tr()),
+              onPressed: inProgress || !tradingEnabled
+                  ? null
+                  : () => _startSwap(context),
+              text: tradingEnabled
+                  ? LocaleKeys.confirm.tr()
+                  : LocaleKeys.tradingDisabled.tr()),
         );
       },
     );
@@ -307,6 +321,25 @@ class _TakerOrderConfirmationState extends State<TakerOrderConfirmation> {
   }
 
   Future<void> _startSwap(BuildContext context) async {
+    final authBloc = context.read<AuthBloc>();
+    final walletType =
+        authBloc.state.currentUser?.wallet.config.type.name ?? '';
+    final takerBloc = context.read<TakerBloc>();
+    final coinsRepo = RepositoryProvider.of<CoinsRepo>(context);
+    final sellCoinObj = takerBloc.state.sellCoin!;
+    final buyCoinObj = coinsRepo.getCoin(takerBloc.state.selectedOrder!.coin);
+    final sellCoin = sellCoinObj.abbr;
+    final buyCoin = buyCoinObj?.abbr ?? takerBloc.state.selectedOrder!.coin;
+    final networks =
+        '${sellCoinObj.protocolType},${buyCoinObj?.protocolType ?? ''}';
+    context.read<AnalyticsBloc>().logEvent(
+          SwapInitiatedEventData(
+            fromAsset: sellCoin,
+            toAsset: buyCoin,
+            networks: networks,
+            walletType: walletType,
+          ),
+        );
     context.read<TakerBloc>().add(TakerStartSwap());
   }
 
@@ -317,6 +350,8 @@ class _TakerOrderConfirmationState extends State<TakerOrderConfirmation> {
     context.read<TakerBloc>().add(TakerClear());
     routingState.dexState.setDetailsAction(uuid);
 
+    final tradingEntitiesBloc =
+        RepositoryProvider.of<TradingEntitiesBloc>(context);
     await tradingEntitiesBloc.fetch();
   }
 }

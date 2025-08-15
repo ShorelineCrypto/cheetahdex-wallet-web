@@ -6,7 +6,7 @@ import 'package:window_size/window_size.dart';
 
 abstract class PlatformTuner {
   static const minDesktopSize = Size(360, 650);
-  static const defaultDesktopSize = Size(1040, 820);
+  static const defaultDesktopSize = Size(1200, 820);
   static const maxDesktopSize = Size.infinite;
 
   static bool get isNativeDesktop {
@@ -15,6 +15,13 @@ abstract class PlatformTuner {
     return defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
+  }
+
+  static bool get isNativeMobile {
+    if (kIsWeb) return false;
+
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
   }
 
   static Future<void> setWindowTitleAndSize() async {

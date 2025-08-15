@@ -6,7 +6,6 @@ library komodo_ui_kit;
 // Buttons
 // This category includes various button widgets used throughout the UI,
 // providing different styles and functionalities.
-export 'src/buttons/divided_button.dart'; // New button
 export 'src/buttons/hyperlink.dart';
 export 'src/buttons/language_switcher/language_switcher.dart';
 export 'src/buttons/multiselect_dropdown/filter_container.dart';
@@ -17,6 +16,7 @@ export 'src/buttons/ui_action_text_button.dart';
 export 'src/buttons/ui_border_button.dart';
 export 'src/buttons/ui_checkbox.dart';
 export 'src/buttons/ui_dropdown.dart';
+export 'src/buttons/ui_gradient_button.dart';
 export 'src/buttons/ui_primary_button.dart';
 export 'src/buttons/ui_secondary_button.dart';
 export 'src/buttons/ui_simple_button.dart';
@@ -27,6 +27,7 @@ export 'src/buttons/upload_button.dart';
 // Containers
 // Container widgets for organizing and displaying other widgets.
 export 'src/containers/chart_tooltip_container.dart';
+export 'src/containers/gradient_container.dart';
 // Controls
 // Widgets that handle user interaction and control other parts of the UI.
 export 'src/controls/market_chart_header_controls.dart';
@@ -35,19 +36,14 @@ export 'src/controls/selected_coin_graph_control.dart'; // New control widget
 export 'src/custom_icons/custom_icons.dart';
 // Display
 // Widgets primarily focused on displaying data and information.
+export 'src/display/auto_scroll_text.dart';
 export 'src/display/statistic_card.dart';
-export 'src/display/trend_percentage_text.dart';
 // Dividers
 // Widgets for dividing content or adding scrollbars.
 export 'src/dividers/ui_divider.dart';
 export 'src/dividers/ui_scrollbar.dart';
-// Images
-// Widgets for displaying images and icons.
-export 'src/images/coin_icon.dart' show CoinIcon, checkIfAssetExists;
 // Inputs
 // Widgets related to data input and selection, including text fields and selectors.
-export 'src/inputs/coin_search_dropdown.dart'
-    show CoinSelectItem, showCoinSearch;
 export 'src/inputs/input_validation_mode.dart';
 export 'src/inputs/percentage_input.dart';
 export 'src/inputs/percentage_range_slider.dart';

@@ -43,7 +43,6 @@ Current Komodo Web Wallet production version is available here: https://app.komo
 - [Project setup](docs/PROJECT_SETUP.md)
 - [Firebase Setup](docs/FIREBASE_SETUP.md)
 - [Coins config, update](docs/COINS_CONFIG.md)
-- [API module, update](docs/UPDATE_API_MODULE.md)
 - [App version, update](docs/UPDATE_APP_VERSION.md)
 - [Run the App](docs/BUILD_RUN_APP.md)
 - [Build release version of the App](docs/BUILD_RELEASE.md)
@@ -51,6 +50,7 @@ Current Komodo Web Wallet production version is available here: https://app.komo
 - [Localization](docs/LOCALIZATION.md)
 - [Unit testing](docs/UNIT_TESTING.md)
 - [Integration testing](docs/INTEGRATION_TESTING.md)
+- [SDK Dependency Management](docs/SDK_DEPENDENCY_MANAGEMENT.md)
 - [Gitflow and branching strategy](docs/GITFLOW_BRANCHING.md)
 - [Issue: create and maintain](docs/ISSUE.md) ...in progress
 - [Contribution guide](docs/CONTRIBUTION_GUIDE.md)

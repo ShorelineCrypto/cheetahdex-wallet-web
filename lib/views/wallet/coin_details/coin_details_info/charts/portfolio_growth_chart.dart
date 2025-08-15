@@ -2,11 +2,15 @@ import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
+import 'package:komodo_ui/komodo_ui.dart' show AssetIcon;
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
 import 'package:web_dex/bloc/cex_market_data/portfolio_growth/portfolio_growth_bloc.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
+import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/views/wallet/wallet_page/charts/coin_prices_chart.dart';
@@ -56,8 +60,9 @@ class _PortfolioGrowthChartState extends State<PortfolioGrowthChart> {
           state.selectedPeriod,
         );
 
-        final isChartLoading = state is! PortfolioGrowthChartLoadSuccess &&
-            state is! PortfolioGrowthChartUnsupported;
+        final isChartLoading = (state is! PortfolioGrowthChartLoadSuccess &&
+                state is! PortfolioGrowthChartUnsupported) ||
+            (state is PortfolioGrowthChartLoadSuccess && state.isUpdating);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -80,7 +85,7 @@ class _PortfolioGrowthChartState extends State<PortfolioGrowthChart> {
                   ),
                   leadingIcon: _singleCoinOrNull == null
                       ? null
-                      : CoinIcon(
+                      : AssetIcon.ofTicker(
                           _singleCoinOrNull!.abbr,
                           size: 24,
                         ),
@@ -88,24 +93,33 @@ class _PortfolioGrowthChartState extends State<PortfolioGrowthChart> {
                     NumberFormat.currency(symbol: '\$', decimalDigits: 2)
                         .format(totalValue),
                   ),
-                  availableCoins:
-                      widget.initialCoins.map((coin) => coin.abbr).toList(),
+                  availableCoins: widget.initialCoins
+                      .map(
+                        (coin) => getSdkAsset(
+                          context.read<KomodoDefiSdk>(),
+                          coin.abbr,
+                        ).id,
+                      )
+                      .toList(),
                   selectedCoinId: _singleCoinOrNull?.abbr,
                   onCoinSelected: _isCoinPage ? null : _showSpecificCoin,
                   centreAmount: totalValue,
                   percentageIncrease: percentageIncrease,
                   selectedPeriod: state.selectedPeriod,
                   onPeriodChanged: (selected) {
-                    if (selected != null) {
-                      final walletId = currentWalletBloc.wallet!.id;
-                      context.read<PortfolioGrowthBloc>().add(
-                            PortfolioGrowthPeriodChanged(
-                              selectedPeriod: selected,
-                              coins: _selectedCoins,
-                              walletId: walletId,
-                            ),
-                          );
+                    if (selected == null) {
+                      return;
                     }
+
+                    final user = context.read<AuthBloc>().state.currentUser;
+                    final walletId = user!.wallet.id;
+                    context.read<PortfolioGrowthBloc>().add(
+                          PortfolioGrowthPeriodChanged(
+                            selectedPeriod: selected,
+                            coins: _selectedCoins,
+                            walletId: walletId,
+                          ),
+                        );
                   },
                 ),
                 const Gap(16),
@@ -179,12 +193,13 @@ class _PortfolioGrowthChartState extends State<PortfolioGrowthChart> {
   }
 
   void _showSpecificCoin(String? coinId) {
+    final currentWallet = context.read<AuthBloc>().state.currentUser?.wallet;
     final coin = coinId == null
         ? null
         : widget.initialCoins.firstWhere((coin) => coin.abbr == coinId);
     final newCoins = coin == null ? widget.initialCoins : [coin];
 
-    final walletId = currentWalletBloc.wallet!.id;
+    final walletId = currentWallet!.id;
     context.read<PortfolioGrowthBloc>().add(
           PortfolioGrowthPeriodChanged(
             selectedPeriod:
@@ -204,11 +219,10 @@ class _PortfolioGrowthChartTooltip extends StatelessWidget {
   // final Color backgroundColor;
 
   const _PortfolioGrowthChartTooltip({
-    Key? key,
     required this.dataPoints,
     required this.coins,
     // required this.backgroundColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +251,7 @@ class _PortfolioGrowthChartTooltip extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CoinIcon(coin.abbr, size: 16),
+                      AssetIcon.ofTicker(coin.abbr, size: 16),
                       const SizedBox(width: 4),
                       Text(
                         abbr2Ticker(coin.abbr),
@@ -254,7 +268,7 @@ class _PortfolioGrowthChartTooltip extends StatelessWidget {
                   ),
                 ],
               );
-            }).toList()
+            })
           else
             Text(
               NumberFormat.currency(symbol: '\$', decimalDigits: 2)

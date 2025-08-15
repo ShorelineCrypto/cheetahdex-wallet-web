@@ -34,17 +34,19 @@ enum WalletsManagerEventMethod {
 class WalletsManagerEvent extends AnalyticsEventData {
   final String source;
   final String method;
+  final String _name;
 
   WalletsManagerEvent({
     required String name,
     required this.source,
     required this.method,
-  }) {
-    this.name = name;
-  }
+  }) : _name = name;
 
   @override
-  Map<String, dynamic> get parameters => {
+  String get name => _name;
+
+  @override
+  Map<String, Object> get parameters => {
         'source': source,
         'method': method,
       };

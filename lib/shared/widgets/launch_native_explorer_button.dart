@@ -2,7 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
-import 'package:web_dex/shared/ui/ui_primary_button.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 
 class LaunchNativeExplorerButton extends StatelessWidget {
@@ -20,7 +20,7 @@ class LaunchNativeExplorerButton extends StatelessWidget {
       width: 160,
       height: 30,
       onPressed: () {
-        launchURL(getNativeExplorerUrlByCoin(coin, address));
+        launchURLString(getNativeExplorerUrlByCoin(coin, address));
       },
       text: LocaleKeys.viewOnExplorer.tr(),
     );

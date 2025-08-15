@@ -1,32 +1,28 @@
+import 'package:decimal/decimal.dart';
+import 'package:logging/logging.dart';
+import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
-import 'package:web_dex/bloc/fiat/banxa_fiat_provider.dart';
 import 'package:web_dex/bloc/fiat/base_fiat_provider.dart';
 import 'package:web_dex/bloc/fiat/fiat_order_status.dart';
-import 'package:web_dex/bloc/fiat/ramp/ramp_fiat_provider.dart';
-import 'package:web_dex/shared/utils/utils.dart';
-
-final fiatRepository =
-    FiatRepository([BanxaFiatProvider(), RampFiatProvider()]);
+import 'package:web_dex/bloc/fiat/models/models.dart';
 
 class FiatRepository {
+  FiatRepository(this.fiatProviders, this._coinsRepo);
+
+  static final _log = Logger('FiatRepository');
+
   final List<BaseFiatProvider> fiatProviders;
-  FiatRepository(this.fiatProviders);
+  final CoinsRepo _coinsRepo;
 
   String? _paymentMethodFiat;
-  Currency? _paymentMethodsCoin;
-  List<Map<String, dynamic>>? _paymentMethodsList;
+  ICurrency? _paymentMethodsCoin;
+  List<FiatPaymentMethod>? _paymentMethodsList;
 
   BaseFiatProvider? _getPaymentMethodProvider(
-    Map<String, dynamic> paymentMethod,
-  ) {
-    return _getProvider(paymentMethod['provider_id'].toString());
-  }
-
-  BaseFiatProvider? _getProvider(
-    String providerId,
+    FiatPaymentMethod paymentMethod,
   ) {
     for (final provider in fiatProviders) {
-      if (provider.getProviderId() == providerId) {
+      if (provider.getProviderId() == paymentMethod.providerId) {
         return provider;
       }
     }
@@ -34,7 +30,7 @@ class FiatRepository {
   }
 
   Stream<FiatOrderStatus> watchOrderStatus(
-    Map<String, dynamic> paymentMethod,
+    FiatPaymentMethod paymentMethod,
     String orderId,
   ) async* {
     final provider = _getPaymentMethodProvider(paymentMethod);
@@ -43,31 +39,48 @@ class FiatRepository {
     yield* provider!.watchOrderStatus(orderId);
   }
 
-  Future<List<Currency>> _getListFromProviders(
-      Future<List<Currency>> Function(BaseFiatProvider) getList,
-      bool isCoin) async {
-    final futures = fiatProviders.map(getList);
+  Future<List<ICurrency>> _getListFromProviders(
+    Future<List<ICurrency>> Function(BaseFiatProvider) getList,
+    bool isCoin,
+  ) async {
+    final futures = fiatProviders.map((provider) async {
+      try {
+        return await getList(provider);
+      } catch (e, s) {
+        _log.severe(
+          'Failed to get currency list from ${provider.getProviderId()}',
+          e,
+          s,
+        );
+        return <ICurrency>[];
+      }
+    });
+
     final results = await Future.wait(futures);
-
-    final currencyMap = <String, Currency>{};
-
-    Set<String>? knownCoinAbbreviations;
-
-    if (isCoin) {
-      final knownCoins = await coinsRepo.getKnownCoins();
-      knownCoinAbbreviations = knownCoins.map((coin) => coin.abbr).toSet();
-    }
+    final currencyMap = <String, ICurrency>{};
+    final knownCoins = _coinsRepo.getKnownCoinsMap();
 
     for (final currencyList in results) {
       for (final currency in currencyList) {
-        // Skip unsupported chains and coins
-        if (isCoin &&
-            (currency.chainType == null ||
-                !knownCoinAbbreviations!.contains(currency.getAbbr()))) {
+        final isCoinSupported = knownCoins.containsKey(currency.getAbbr());
+        if (isCoin && (currency.isFiat || !isCoinSupported)) {
+          _log.fine(
+            'Skipping ${currency.getAbbr()} because it is not a coin or '
+            'not supported (${currency.configSymbol})',
+          );
           continue;
         }
 
-        // Fill the map and replace missing image ones
+        bool isCoinSegwitKnown(String coinTicker) =>
+            currency.isCrypto && knownCoins.containsKey('$coinTicker-segwit');
+        if (isCoinSegwitKnown(currency.getAbbr())) {
+          final segwitCoin = knownCoins['${currency.getAbbr()}-segwit'];
+          final segwitCurrency = (currency as CryptoCurrency).copyWith(
+            symbol: segwitCoin!.id.id,
+          );
+          currencyMap.putIfAbsent(segwitCoin.id.id, () => segwitCurrency);
+        }
+
         currencyMap.putIfAbsent(currency.getAbbr(), () => currency);
       }
     }
@@ -76,10 +89,16 @@ class FiatRepository {
       ..sort((a, b) => a.symbol.compareTo(b.symbol));
   }
 
-  Future<List<Currency>> getFiatList() async {
-    return (await _getListFromProviders(
-        (provider) => provider.getFiatList(), false))
+  Future<List<FiatCurrency>> getFiatList() async {
+    final currencies = await _getListFromProviders(
+      (provider) => provider.getFiatList(),
+      false,
+    );
+
+    final fiatCurrencies = currencies.cast<FiatCurrency>().toList()
       ..sort((a, b) => currencySorter(a.getAbbr(), b.getAbbr()));
+
+    return fiatCurrencies;
   }
 
   // Order fiat list by common currencies first (fixed order), then the
@@ -98,51 +117,52 @@ class FiatRepository {
     }
   }
 
-  Future<List<Currency>> getCoinList() async {
-    return _getListFromProviders((provider) => provider.getCoinList(), true);
+  Future<List<CryptoCurrency>> getCoinList() async {
+    final currencies = await _getListFromProviders(
+      (provider) => provider.getCoinList(),
+      true,
+    );
+
+    return currencies.cast<CryptoCurrency>().toList();
   }
 
-  String? _calculateCoinAmount(String fiatAmount, String spotPriceIncludingFee,
-      {int decimalPoints = 8}) {
-    if (fiatAmount.isEmpty || spotPriceIncludingFee.isEmpty) {
+  Decimal? _calculateCoinAmount(
+    String fiatAmount,
+    Decimal spotPriceIncludingFee,
+    ) {
+    if (fiatAmount.isEmpty || spotPriceIncludingFee == Decimal.zero) {
+      _log.info('Fiat amount or spot price is zero, returning null');
       return null;
     }
 
     try {
-      final fiat = double.parse(fiatAmount);
-      final spotPrice = double.parse(spotPriceIncludingFee);
-      if (spotPrice == 0) return null;
+      final fiat = Decimal.parse(fiatAmount);
 
-      final coinAmount = fiat / spotPrice;
-      return coinAmount.toStringAsFixed(decimalPoints);
-    } catch (e) {
+      final coinAmount = fiat / spotPriceIncludingFee;
+      return coinAmount.toDecimal(
+        scaleOnInfinitePrecision: scaleOnInfinitePrecision,
+      );
+    } catch (e, s) {
+      _log.shout('Failed to calculate coin amount', e, s);
       return null;
     }
   }
 
-  String _calculateSpotPriceIncludingFee(Map<String, dynamic> paymentMethod) {
+  Decimal _calculateSpotPriceIncludingFee(FiatPaymentMethod paymentMethod) {
     // Use the previous coin and fiat amounts to estimate the spot price
     // including fee.
-    final coinAmount =
-        double.parse(paymentMethod['price_info']['coin_amount'] as String);
-    final fiatAmount =
-        double.parse(paymentMethod['price_info']['fiat_amount'] as String);
+    final coinAmount = paymentMethod.priceInfo.coinAmount;
+    final fiatAmount = paymentMethod.priceInfo.fiatAmount;
     final spotPriceIncludingFee = fiatAmount / coinAmount;
-    return spotPriceIncludingFee.toString();
+    return spotPriceIncludingFee.toDecimal(
+      scaleOnInfinitePrecision: scaleOnInfinitePrecision,
+    );
   }
 
-  int? _getDecimalPoints(String amount) {
-    final decimalPointIndex = amount.indexOf('.');
-    if (decimalPointIndex == -1) {
-      return null;
-    }
-    return amount.substring(decimalPointIndex + 1).length;
-  }
-
-  List<Map<String, dynamic>>? _getPaymentListEstimate(
-    List<Map<String, dynamic>> paymentMethodsList,
+  List<FiatPaymentMethod>? _getPaymentListEstimate(
+    List<FiatPaymentMethod> paymentMethodsList,
     String sourceAmount,
-    Currency target,
+    CryptoCurrency target,
     String source,
   ) {
     if (target != _paymentMethodsCoin || source != _paymentMethodFiat) {
@@ -154,36 +174,30 @@ class FiatRepository {
 
     try {
       return paymentMethodsList.map((method) {
-        String? spotPriceIncludingFee;
-        spotPriceIncludingFee = _calculateSpotPriceIncludingFee(method);
-        int decimalAmount =
-            _getDecimalPoints(method['price_info']['coin_amount']) ?? 8;
+        final Decimal spotPriceIncludingFee =
+            _calculateSpotPriceIncludingFee(method);
 
         final coinAmount = _calculateCoinAmount(
           sourceAmount,
           spotPriceIncludingFee,
-          decimalPoints: decimalAmount,
         );
 
-        return {
-          ...method,
-          "price_info": {
-            ...method['price_info'],
-            "coin_amount": coinAmount,
-            "fiat_amount": sourceAmount,
-          }.map((key, value) => MapEntry(key as String, value)),
-        };
+        return method.copyWith(
+          priceInfo: method.priceInfo.copyWith(
+            coinAmount: coinAmount,
+            fiatAmount: Decimal.tryParse(sourceAmount) ?? Decimal.zero,
+          ),
+        );
       }).toList();
-    } catch (e) {
-      log('Fiat payment list estimation failed',
-          isError: true, trace: StackTrace.current, path: 'fiat_repository');
+    } catch (e, s) {
+      _log.shout('Fiat payment list estimation failed', e, s);
       return null;
     }
   }
 
-  Stream<List<Map<String, dynamic>>> getPaymentMethodsList(
+  Stream<List<FiatPaymentMethod>> getPaymentMethodsList(
     String source,
-    Currency target,
+    CryptoCurrency target,
     String sourceAmount,
   ) async* {
     if (_paymentMethodsList != null) {
@@ -191,7 +205,11 @@ class FiatRepository {
       // This is to display temporary values while the new list is being fetched
       // This is not a perfect solution
       _paymentMethodsList = _getPaymentListEstimate(
-          _paymentMethodsList!, sourceAmount, target, source);
+        _paymentMethodsList!,
+        sourceAmount,
+        target,
+        source,
+      );
       if (_paymentMethodsList != null) {
         _paymentMethodsCoin = target;
         _paymentMethodFiat = source;
@@ -200,15 +218,28 @@ class FiatRepository {
     }
 
     final futures = fiatProviders.map((provider) async {
-      final paymentMethods =
-          await provider.getPaymentMethodsList(source, target, sourceAmount);
-      return paymentMethods
-          .map((method) => {
-                ...method,
-                'provider_id': provider.getProviderId(),
-                'provider_icon_asset_path': provider.providerIconPath,
-              })
-          .toList();
+      try {
+        final paymentMethods = await provider.getPaymentMethodsList(
+          source,
+          target,
+          sourceAmount,
+        );
+        return paymentMethods
+            .map(
+              (method) => method.copyWith(
+                providerId: provider.getProviderId(),
+                providerIconAssetPath: provider.providerIconPath,
+              ),
+            )
+            .toList();
+      } catch (e, s) {
+        _log.severe(
+          'Failed to fetch payment methods from ${provider.getProviderId()}',
+          e,
+          s,
+        );
+        return <FiatPaymentMethod>[];
+      }
     });
 
     final results = await Future.wait(futures);
@@ -220,16 +251,16 @@ class FiatRepository {
     yield _paymentMethodsList!;
   }
 
-  Future<Map<String, dynamic>> getPaymentMethodPrice(
+  Future<FiatPriceInfo> getPaymentMethodPrice(
     String source,
-    Currency target,
+    ICurrency target,
     String sourceAmount,
-    Map<String, dynamic> buyPaymentMethod,
+    FiatPaymentMethod buyPaymentMethod,
   ) async {
     final provider = _getPaymentMethodProvider(buyPaymentMethod);
-    if (provider == null) return Future.error("Provider not found");
+    if (provider == null) return Future.error('Provider not found');
 
-    return await provider.getPaymentMethodPrice(
+    return provider.getPaymentMethodPrice(
       source,
       target,
       sourceAmount,
@@ -237,67 +268,72 @@ class FiatRepository {
     );
   }
 
-  Future<Map<String, dynamic>> buyCoin(
-    String accountReference,
-    String source,
-    Currency target,
-    String walletAddress,
-    Map<String, dynamic> paymentMethod,
-    String sourceAmount,
-    String returnUrlOnSuccess,
-  ) async {
+  Future<FiatBuyOrderInfo> buyCoin({
+    required String accountReference,
+    required String source,
+    required ICurrency target,
+    required String walletAddress,
+    required FiatPaymentMethod paymentMethod,
+    required String sourceAmount,
+    required String returnUrlOnSuccess,
+  }) async {
     final provider = _getPaymentMethodProvider(paymentMethod);
-    if (provider == null) return Future.error("Provider not found");
+    if (provider == null) return Future.error('Provider not found');
 
-    return await provider.buyCoin(
+    return provider.buyCoin(
       accountReference,
       source,
       target,
       walletAddress,
-      paymentMethod['id'].toString(),
+      paymentMethod.id,
       sourceAmount,
       returnUrlOnSuccess,
     );
   }
 
-  List<Map<String, dynamic>> _addRelativePercentField(
-      List<Map<String, dynamic>> paymentMethodsList) {
+  List<FiatPaymentMethod> _addRelativePercentField(
+    List<FiatPaymentMethod> paymentMethodsList,
+  ) {
+    if (paymentMethodsList.isEmpty) {
+      return paymentMethodsList;
+    }
+
     // Add a relative percent value to each payment method
     // based on the payment method with the highest `coin_amount`
     try {
       final coinAmounts = _paymentMethodsList!
-          .map((method) => double.parse(method['price_info']['coin_amount']))
+          .map((method) => method.priceInfo.coinAmount)
           .toList();
       final maxCoinAmount = coinAmounts.reduce((a, b) => a > b ? a : b);
       return _paymentMethodsList!.map((method) {
-        final coinAmount = double.parse(method['price_info']['coin_amount']);
-        if (coinAmount == 0) {
+        final coinAmount = method.priceInfo.coinAmount;
+        if (coinAmount == Decimal.zero) {
           return method;
         }
         if (coinAmount == maxCoinAmount) {
-          return {
-            ...method,
-            'relative_percent': null,
-          };
+          return method.copyWith(relativePercent: Decimal.zero);
         }
 
         final relativeValue =
-            (coinAmount - maxCoinAmount) / (maxCoinAmount).abs();
+            (coinAmount - maxCoinAmount) / maxCoinAmount.abs();
 
-        return {
-          ...method,
-          'relative_percent': relativeValue, //0 to -1
-        };
+        return method.copyWith(
+          relativePercent: relativeValue.toDecimal(
+            scaleOnInfinitePrecision: scaleOnInfinitePrecision,
+          ),
+        );
       }).toList()
         ..sort((a, b) {
-          if (a['relative_percent'] == null) return -1;
-          if (b['relative_percent'] == null) return 1;
-          return (b['relative_percent'] as double)
-              .compareTo(a['relative_percent'] as double);
+          if (a.relativePercent == Decimal.zero) return -1;
+          if (b.relativePercent == Decimal.zero) return 1;
+          return b.relativePercent.compareTo(a.relativePercent);
         });
-    } catch (e) {
-      log('Failed to add relative percent field to payment methods list',
-          isError: true, trace: StackTrace.current, path: 'fiat_repository');
+    } catch (e, s) {
+      _log.shout(
+        'Failed to add relative percent field to payment methods list',
+        e,
+        s,
+      );
       return paymentMethodsList;
     }
   }

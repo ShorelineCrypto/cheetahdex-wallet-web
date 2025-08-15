@@ -1,12 +1,17 @@
-import 'package:web_dex/model/coin.dart';
-import 'package:web_dex/model/coin_type.dart';
+part of 'coins_manager_bloc.dart';
 
 abstract class CoinsManagerEvent {
   const CoinsManagerEvent();
 }
 
+class CoinsManagerCoinsListReset extends CoinsManagerEvent {
+  const CoinsManagerCoinsListReset(this.action);
+  final CoinsManagerAction action;
+}
+
 class CoinsManagerCoinsUpdate extends CoinsManagerEvent {
-  const CoinsManagerCoinsUpdate();
+  const CoinsManagerCoinsUpdate(this.action);
+  final CoinsManagerAction action;
 }
 
 class CoinsManagerCoinTypeSelect extends CoinsManagerEvent {
@@ -15,6 +20,8 @@ class CoinsManagerCoinTypeSelect extends CoinsManagerEvent {
 }
 
 class CoinsManagerCoinsSwitch extends CoinsManagerEvent {
+  @Deprecated('Switching between add and remove assets was removed, '
+      'so this event and its UI references are no longer used.')
   const CoinsManagerCoinsSwitch();
 }
 
@@ -34,4 +41,27 @@ class CoinsManagerSelectedTypesReset extends CoinsManagerEvent {
 class CoinsManagerSearchUpdate extends CoinsManagerEvent {
   const CoinsManagerSearchUpdate({required this.text});
   final String text;
+}
+
+class CoinsManagerSortChanged extends CoinsManagerEvent {
+  const CoinsManagerSortChanged(this.sortData);
+
+  final CoinsManagerSortData sortData;
+}
+
+class CoinsManagerCoinRemoveRequested extends CoinsManagerEvent {
+  const CoinsManagerCoinRemoveRequested({required this.coin});
+  final Coin coin;
+}
+
+class CoinsManagerCoinRemoveConfirmed extends CoinsManagerEvent {
+  const CoinsManagerCoinRemoveConfirmed();
+}
+
+class CoinsManagerCoinRemovalCancelled extends CoinsManagerEvent {
+  const CoinsManagerCoinRemovalCancelled();
+}
+
+class CoinsManagerErrorCleared extends CoinsManagerEvent {
+  const CoinsManagerErrorCleared();
 }

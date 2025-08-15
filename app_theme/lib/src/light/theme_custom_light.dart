@@ -1,13 +1,33 @@
-import 'package:app_theme/app_theme.dart';
 import 'package:flutter/material.dart';
-
 import '../common/theme_custom_base.dart';
 
-class ThemeCustomLight implements ThemeCustomBase {
+class ThemeCustomLight extends ThemeExtension<ThemeCustomLight>
+    implements ThemeCustomBase {
+  ThemeCustomLight();
+
+  @override
+  late final Color suspendedBannerBackgroundColor;
+
+  void initializeThemeDependentColors(ThemeData theme) {
+    suspendedBannerBackgroundColor = theme.colorScheme.onSurface;
+  }
+
+  @override
+  ThemeExtension<ThemeCustomLight> copyWith() {
+    return this;
+  }
+
+  @override
+  ThemeExtension<ThemeCustomLight> lerp(
+      ThemeExtension<ThemeCustomLight>? other, double t) {
+    if (other is! ThemeCustomLight) return this;
+    return this;
+  }
+
   @override
   final Color mainMenuItemColor = const Color.fromRGBO(69, 96, 120, 1);
   @override
-  final Color mainMenuSelectedItemColor = const Color.fromRGBO(34, 121, 241, 1);
+  final Color mainMenuSelectedItemColor = const Color(0xFF00D4FF);
   @override
   final Color checkCheckboxColor = Colors.white;
   @override
@@ -21,25 +41,25 @@ class ThemeCustomLight implements ThemeCustomBase {
   final TextStyle tradingFormDetailsContent = const TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w700,
-    color: Color.fromRGBO(106, 139, 235, 1),
+    color: Color(0xFF00D4FF),
   );
   @override
   final Color fiatAmountColor = const Color.fromRGBO(168, 177, 185, 1);
   @override
-  final Color headerFloatBoxColor = const Color.fromRGBO(98, 121, 233, 1);
+  final Color headerFloatBoxColor = const Color(0xFF00D4FF);
   @override
-  final Color headerIconColor = const Color.fromRGBO(34, 121, 241, 1);
+  final Color headerIconColor = const Color(0xFF00D4FF);
   @override
   final Color buttonColorDefault = const Color.fromRGBO(245, 249, 255, 1);
   @override
-  final Color buttonColorDefaultHover = const Color.fromRGBO(76, 128, 233, 1);
+  final Color buttonColorDefaultHover = const Color(0xFF00D4FF);
   @override
   final Color buttonTextColorDefaultHover =
       const Color.fromRGBO(245, 249, 255, 1);
   @override
   final Color noColor = Colors.transparent;
   @override
-  final Color increaseColor = const Color.fromRGBO(0, 192, 88, 1);
+  final Color increaseColor = const Color(0xFF00C3AA);
   @override
   final Color decreaseColor = const Color.fromRGBO(229, 33, 103, 1);
   @override
@@ -53,10 +73,10 @@ class ThemeCustomLight implements ThemeCustomBase {
       const Color.fromRGBO(90, 230, 205, 1);
   @override
   final Color simpleButtonBackgroundColor =
-      const Color.fromRGBO(136, 146, 235, 0.2);
+      const Color.fromRGBO(0, 212, 170, 0.2);
   @override
   final Color disabledButtonBackgroundColor =
-      const Color.fromRGBO(90, 104, 230, 0.3);
+      const Color.fromRGBO(0, 212, 170, 0.3);
   @override
   final Gradient authorizePageBackgroundColor = const RadialGradient(
     center: Alignment.bottomCenter,
@@ -70,14 +90,11 @@ class ThemeCustomLight implements ThemeCustomBase {
   @override
   final Color defaultGradientButtonTextColor = Colors.white;
   @override
-  final Color defaultCheckboxColor = const Color.fromRGBO(81, 121, 233, 1);
+  final Color defaultCheckboxColor = const Color(0xFF00D4FF);
   @override
   final Gradient defaultSwitchColor = const LinearGradient(
     stops: [0, 93],
-    colors: [
-      Color.fromRGBO(136, 146, 235, 1),
-      Color.fromRGBO(157, 212, 243, 1)
-    ],
+    colors: [Color(0xFF00C3AA), Color(0xFF00D4FF)],
   );
   @override
   final Color settingsMenuItemBackgroundColor =
@@ -91,8 +108,7 @@ class ThemeCustomLight implements ThemeCustomBase {
   @override
   final Color rewardBoxShadowColor = const Color.fromRGBO(0, 0, 0, 0.1);
   @override
-  final Color defaultBorderButtonBorder =
-      const Color.fromRGBO(136, 146, 235, 1);
+  final Color defaultBorderButtonBorder = const Color(0xFF00D4FF);
   @override
   final Color successColor = const Color.fromRGBO(0, 192, 88, 1);
   @override
@@ -109,9 +125,9 @@ class ThemeCustomLight implements ThemeCustomBase {
   final CoinsManagerTheme coinsManagerTheme = const CoinsManagerTheme();
   @override
   final DexPageTheme dexPageTheme = const DexPageTheme(
-    activeOrderFormTabColor: Color.fromRGBO(34, 121, 241, 1),
+    activeOrderFormTabColor: Color(0xFF00D4FF),
     inactiveOrderFormTabColor: Color.fromRGBO(69, 96, 120, 1),
-    activeOrderFormTab: Color.fromRGBO(34, 121, 241, 1),
+    activeOrderFormTab: Color(0xFF00D4FF),
     inactiveOrderFormTab: Color.fromRGBO(69, 96, 120, 1),
     formPlateGradient: LinearGradient(
       colors: [
@@ -124,9 +140,9 @@ class ThemeCustomLight implements ThemeCustomBase {
     frontPlate: Color.fromRGBO(255, 255, 255, 1),
     frontPlateInner: Color.fromRGBO(245, 245, 245, 1),
     frontPlateBorder: Color.fromRGBO(208, 214, 237, 1),
-    activeText: Color.fromRGBO(34, 121, 241, 1),
+    activeText: Color(0xFF00D4FF),
     inactiveText: Color.fromRGBO(69, 96, 120, 1),
-    blueText: Color.fromRGBO(34, 121, 241, 1),
+    blueText: Color(0xFF00D4FF),
     smallButton: Color.fromRGBO(243, 245, 246, 1),
     smallButtonText: Color.fromRGBO(69, 96, 120, 1),
     pagePlateDivider: Color.fromRGBO(208, 214, 237, 1),
@@ -153,13 +169,13 @@ class ThemeCustomLight implements ThemeCustomBase {
   final Color specificButtonBackgroundColor =
       const Color.fromRGBO(251, 251, 251, 1);
   @override
-  final Color balanceColor = const Color.fromRGBO(106, 139, 235, 1);
+  final Color balanceColor = const Color(0xFF00D4FF);
   @override
   final Color subBalanceColor = const Color.fromRGBO(124, 136, 171, 1);
   @override
   final Color subCardBackgroundColor = const Color.fromRGBO(245, 249, 255, 1);
   @override
-  final Color lightButtonColor = const Color.fromRGBO(137, 182, 255, 0.12);
+  final Color lightButtonColor = const Color.fromRGBO(0, 212, 170, 0.12);
   @override
   final Color filterItemBorderColor = const Color.fromRGBO(239, 239, 239, 1);
   @override
@@ -167,7 +183,7 @@ class ThemeCustomLight implements ThemeCustomBase {
   @override
   final Color progressBarColor = const Color.fromRGBO(69, 96, 120, 0.33);
   @override
-  final Color progressBarPassedColor = const Color.fromRGBO(137, 147, 236, 1);
+  final Color progressBarPassedColor = const Color(0xFF00D4FF);
   @override
   final Color progressBarNotPassedColor =
       const Color.fromRGBO(194, 203, 210, 1);
@@ -179,25 +195,22 @@ class ThemeCustomLight implements ThemeCustomBase {
   final Color smartchainLabelBorderColor = const Color.fromRGBO(32, 22, 49, 1);
   @override
   final Color mainMenuSelectedItemBackgroundColor =
-      const Color.fromRGBO(146, 187, 255, 0.12);
+      const Color.fromRGBO(0, 212, 170, 0.12);
   @override
   final Color selectedMenuBackgroundColor =
-      const Color.fromRGBO(146, 187, 255, 0.12);
+      const Color.fromRGBO(0, 212, 170, 0.12);
   @override
   final Color searchFieldMobile = const Color.fromRGBO(239, 240, 242, 1);
   @override
   final Color walletEditButtonsBackgroundColor =
       const Color.fromRGBO(248, 248, 248, 1);
   @override
-  final Color swapButtonColor = const Color.fromRGBO(64, 146, 219, 1);
-  @override
-  final Color suspendedBannerBackgroundColor =
-      theme.currentGlobal.colorScheme.onSurface;
+  final Color swapButtonColor = const Color(0xFF00D4FF);
   @override
   final bridgeFormHeader = const TextStyle(
       fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 3.5);
   @override
-  final Color keyPadColor = theme.global.light.colorScheme.onSurface;
+  final Color keyPadColor = const Color.fromRGBO(251, 251, 251, 1);
   @override
   final Color keyPadTextColor = const Color.fromRGBO(129, 151, 182, 1);
   @override

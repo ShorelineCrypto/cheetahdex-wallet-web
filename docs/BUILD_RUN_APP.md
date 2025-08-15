@@ -61,7 +61,7 @@ flutter run -d web-server --web-port=8080
 
 ## Desktop
 
-#### macOS desktop
+### macOS desktop
 
 In order to build for macOS, you need to use a macOS host.
 
@@ -99,13 +99,31 @@ Build
 flutter build macos
 ```
 
-#### Windows desktop
+### Windows desktop
 
 In order to build for Windows, you need to use a Windows host.
 
 Run `flutter config --enable-windows-desktop` to enable Windows desktop support.
 
 If you are using Windows 10, please ensure that [Microsoft WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH) is installed for Webview support. Windows 11 ships with it, but Windows 10 users might need to install it.
+
+Please ensure the following prerequisites are installed:
+
+- [Visual Studio](https://visualstudio.microsoft.com/vs/community/) | Community 17.13.0 (Windows only), with the `Desktop development with C++` workload installed.
+- [Nuget CLI](https://www.nuget.org/downloads) is required for Windows desktop builds. Install with winget
+
+    ```PowerShell
+    winget install -e --id Microsoft.NuGet
+    # Add a primary package source
+    . $profile
+    nuget sources add -name "NuGet.org" -source https://api.nuget.org/v3/index.json
+    ```
+
+- Enable long paths in Windows registry. Open CMD or PowerShell as Administrator, run the following, and restart:
+
+    ```PowerShell
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1
+    ```
 
 Before building for Windows, run `flutter doctor` to check if all the dependencies are installed. If not, follow the instructions in the error message.
 
@@ -136,7 +154,7 @@ Build
 flutter build windows
 ```
 
-#### Linux desktop
+### Linux desktop
 
 In order to build for Linux, you need to use a Linux host with support for [libwebkit2gtk-4.1](https://packages.ubuntu.com/search?keywords=webkit2gtk), i.e. Ubuntu 22.04 (jammy) or later.
 
@@ -161,10 +179,34 @@ The Linux dependencies, [according to flutter.dev](https://docs.flutter.dev/get-
 > - libstdc++-12-dev
 > - webkit2gtk-4.1 (Webview support)
 
-To install on Ubuntu 22.04 or later, run:
+To install on Ubuntu 20.04 or later, run:
 
 ```bash
-sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev webkit2gtk-4.1
+sudo apt-get install -y clang cmake git ninja-build pkg-config \
+    libgtk-3-dev liblzma-dev libstdc++-12-dev webkit2gtk-4.1 \
+    curl git unzip xz-utils zip libglu1-mesa
+```
+
+Users of Ubuntu 24.04 (Noble) or later, might need to install additional dependencies, and add `PKG_CONFIG_PATH` to their bash configuration. If that doesn't work, then try adding it to `/etc/environment` as well.
+
+```bash
+# Install xproto & xorg development libraries (xorg is precautionary, so can be excluded)
+sudo apt-get install -y x11proto-dev xorg-dev libgl1-mesa-dev
+
+# Check if PKG_CONFIG_PATH exists first before modifying or overwriting it
+echo $PKG_CONFIG_PATH
+
+# Add PKG_CONFIG_PATH to .bashrc only if it doesn't exist or is empty
+if [ -z "$PKG_CONFIG_PATH" ]; then
+    echo "PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" | sudo tee -a ~/.bashrc
+    source ~/.bashrc
+    pkg-config --cflags --libs gtk+-3.0
+else
+    echo "PKG_CONFIG_PATH is already set."
+fi
+
+# Confirm that gtk+-3.0 is found in the output
+flutter doctor
 ```
 
 ```bash
@@ -196,7 +238,7 @@ Building an app for Android and iOS requires you to download their respective ID
 
 However, iOS tooling only works on macOS host.
 
-#### Android
+### Android
 
 For Android, after installing the IDE and initial tools using the setup wizard, run the app with `flutter run`.
 Flutter will attempt to build the app, and any missing Android SDK dependency will be downloaded.
@@ -214,23 +256,23 @@ Running the app on an Android emulator has been tested on Apple Silicon Macs onl
 
 Release mode:
 
-```
+```bash
 flutter run -d <device-id> --release
 ```
 
 Build APK:
 
-```
+```bash
 flutter build apk
 ```
 
 Build App Bundle:
 
-```
+```bash
 flutter build appbundle
 ```
 
-#### iOS
+### iOS
 
 In order to build for iOS/iPadOS, you need to use a macOS host (Apple silicon recommended)
 Physical iPhone or iPad required, simulators are not yet supported.
@@ -249,12 +291,12 @@ Physical iPhone or iPad required, simulators are not yet supported.
 
 Run in release mode:
 
-```
+```bash
 flutter run -d <device-id> --release
 ```
 
 Build:
 
-```
+```bash
 flutter build ios
 ```

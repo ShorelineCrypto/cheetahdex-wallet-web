@@ -2,10 +2,10 @@ import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/wallet.dart';
-import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 
 class WalletTypeListItem extends StatelessWidget {
   const WalletTypeListItem({
@@ -18,7 +18,8 @@ class WalletTypeListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool needAttractAttention = type == WalletType.iguana;
+    final bool needAttractAttention =
+        type == WalletType.iguana || type == WalletType.hdwallet;
     final bool isSupported = _checkWalletSupport(type);
 
     return Column(
@@ -35,7 +36,7 @@ class WalletTypeListItem extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (type != WalletType.iguana)
+              if (type != WalletType.iguana && type != WalletType.hdwallet)
                 SvgPicture.asset(
                   _iconPath,
                   width: 25,
@@ -53,13 +54,6 @@ class WalletTypeListItem extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (!isSupported)
-                      Text(LocaleKeys.comingSoon.tr(),
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          )),
                   ],
                 ),
               )
@@ -73,6 +67,7 @@ class WalletTypeListItem extends StatelessWidget {
   String get _iconPath {
     switch (type) {
       case WalletType.iguana:
+      case WalletType.hdwallet:
         return '$assetsPath/ui_icons/atomic_dex.svg';
       case WalletType.metamask:
         return '$assetsPath/ui_icons/metamask.svg';
@@ -90,7 +85,8 @@ class WalletTypeListItem extends StatelessWidget {
   String get _walletTypeName {
     switch (type) {
       case WalletType.iguana:
-        return LocaleKeys.komodoWalletSeed.tr();
+      case WalletType.hdwallet:
+        return LocaleKeys.komodoWallet.tr();
       case WalletType.metamask:
         return LocaleKeys.metamask.tr();
       case WalletType.keplr:
@@ -104,6 +100,7 @@ class WalletTypeListItem extends StatelessWidget {
     switch (type) {
       case WalletType.iguana:
       case WalletType.trezor:
+      case WalletType.hdwallet:
         return true;
       case WalletType.keplr:
       case WalletType.metamask:

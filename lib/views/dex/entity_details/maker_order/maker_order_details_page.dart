@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:web_dex/blocs/trading_entities_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/order_status/cancellation_reason.dart';
 import 'package:web_dex/model/my_orders/my_order.dart';
@@ -12,7 +14,6 @@ import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/views/dex/entity_details/trading_details_coin_pair.dart';
 import 'package:web_dex/views/dex/entity_details/trading_details_header.dart';
-import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 
 class MakerOrderDetailsPage extends StatefulWidget {
   const MakerOrderDetailsPage(this.makerOrderStatus, {Key? key})
@@ -50,6 +51,8 @@ class _MakerOrderDetailsPageState extends State<MakerOrderDetailsPage> {
                   baseAmount: order.baseAmountAvailable ?? order.baseAmount,
                   relCoin: order.rel,
                   relAmount: order.relAmountAvailable ?? order.relAmount,
+                  isOrder: true,
+                  swapId: order.uuid,
                 ),
                 const SizedBox(height: 30),
                 _buildDetails(),
@@ -71,7 +74,6 @@ class _MakerOrderDetailsPageState extends State<MakerOrderDetailsPage> {
         children: [
           _buildPrice(),
           _buildCreatedAt(),
-          _buildOrderId(),
           _buildStatus(),
         ],
       ),
@@ -140,47 +142,33 @@ class _MakerOrderDetailsPageState extends State<MakerOrderDetailsPage> {
     return TableRow(
       children: [
         SizedBox(
-            height: 30,
-            child: Text('${LocaleKeys.status.tr()}:',
-                style: Theme.of(context).textTheme.bodyLarge)),
-        Text(status),
-      ],
-    );
-  }
-
-  TableRow _buildOrderId() {
-    final MyOrder order = widget.makerOrderStatus.order;
-    return TableRow(
-      children: [
-        SizedBox(
-            height: 30,
-            child: Text('${LocaleKeys.orderId.tr()}:',
-                style: Theme.of(context).textTheme.bodyLarge)),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: InkWell(
-            onTap: () => copyToClipBoard(context, order.uuid),
-            child: Text(
-              order.uuid,
-              key: const Key('maker-order-uuid'),
-            ),
+          height: 30,
+          child: Text(
+            '${LocaleKeys.status.tr()}:',
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
         ),
+        Text(status),
       ],
     );
   }
 
   TableRow _buildCreatedAt() {
     final String createdAt = DateFormat('dd MMM yyyy, HH:mm').format(
-        DateTime.fromMillisecondsSinceEpoch(
-            widget.makerOrderStatus.order.createdAt * 1000));
+      DateTime.fromMillisecondsSinceEpoch(
+        widget.makerOrderStatus.order.createdAt * 1000,
+      ),
+    );
 
     return TableRow(
       children: [
         SizedBox(
-            height: 30,
-            child: Text('${LocaleKeys.createdAt.tr()}:',
-                style: Theme.of(context).textTheme.bodyLarge)),
+          height: 30,
+          child: Text(
+            '${LocaleKeys.createdAt.tr()}:',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
         Text(createdAt),
       ],
     );
@@ -194,9 +182,12 @@ class _MakerOrderDetailsPageState extends State<MakerOrderDetailsPage> {
     return TableRow(
       children: [
         SizedBox(
-            height: 30,
-            child: Text('${LocaleKeys.price.tr()}:',
-                style: Theme.of(context).textTheme.bodyLarge)),
+          height: 30,
+          child: Text(
+            '${LocaleKeys.price.tr()}:',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
         Row(
           children: [
             Text(
@@ -206,7 +197,7 @@ class _MakerOrderDetailsPageState extends State<MakerOrderDetailsPage> {
             const SizedBox(
               width: 5,
             ),
-            Text(order.rel)
+            Text(order.rel),
           ],
         ),
       ],
@@ -219,6 +210,8 @@ class _MakerOrderDetailsPageState extends State<MakerOrderDetailsPage> {
       _inProgress = true;
     });
 
+    final tradingEntitiesBloc =
+        RepositoryProvider.of<TradingEntitiesBloc>(context);
     final String? error = await tradingEntitiesBloc
         .cancelOrder(widget.makerOrderStatus.order.uuid);
 

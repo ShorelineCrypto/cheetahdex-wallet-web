@@ -11,20 +11,27 @@ class WalletsManager extends StatelessWidget {
     required this.walletType,
     required this.close,
     required this.onSuccess,
+    this.selectedWallet,
+    this.initialHdMode = false,
   }) : super(key: key);
   final WalletsManagerEventType eventType;
   final WalletType walletType;
   final VoidCallback close;
   final Function(Wallet) onSuccess;
+  final Wallet? selectedWallet;
+  final bool initialHdMode;
 
   @override
   Widget build(BuildContext context) {
     switch (walletType) {
       case WalletType.iguana:
+      case WalletType.hdwallet:
         return IguanaWalletsManager(
           close: close,
           onSuccess: onSuccess,
           eventType: eventType,
+          initialWallet: selectedWallet,
+          initialHdMode: initialHdMode,
         );
 
       case WalletType.trezor:

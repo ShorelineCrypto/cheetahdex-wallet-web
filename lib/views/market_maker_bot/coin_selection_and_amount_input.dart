@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
+import 'package:web_dex/bloc/settings/settings_bloc.dart';
 import 'package:web_dex/model/coin.dart';
-import 'package:web_dex/shared/widgets/coin_icon.dart';
 import 'package:web_dex/shared/widgets/coin_item/coin_item_body.dart';
 import 'package:web_dex/shared/widgets/coin_item/coin_item_size.dart';
-import 'package:web_dex/shared/widgets/coin_item/coin_logo.dart';
+import 'package:komodo_ui/komodo_ui.dart';
+import 'package:web_dex/shared/widgets/coin_select_item_widget.dart';
 import 'package:web_dex/views/dex/common/front_plate.dart';
 import 'package:web_dex/views/dex/simple/form/common/dex_form_group_header.dart';
 import 'package:web_dex/views/dex/simple/form/tables/table_utils.dart';
-import 'package:web_dex/views/dex/simple/form/taker/coin_item/balance_text.dart';
 import 'package:web_dex/views/dex/simple/form/taker/coin_item/coin_name_and_protocol.dart';
 import 'package:web_dex/views/market_maker_bot/coin_search_dropdown.dart';
 
@@ -37,7 +39,7 @@ class CoinSelectionAndAmountInput extends StatefulWidget {
 
 class _CoinSelectionAndAmountInputState
     extends State<CoinSelectionAndAmountInput> {
-  late List<CoinSelectItem> _items;
+  late List<DropdownMenuItem<String>> _items;
 
   @override
   void initState() {
@@ -53,18 +55,23 @@ class _CoinSelectionAndAmountInputState
     }
   }
 
+  late final _sdk = context.read<KomodoDefiSdk>();
   void _prepareItems() {
-    _items = prepareCoinsForTable(widget.coins, null)
+    _items = prepareCoinsForTable(
+      context,
+      widget.coins,
+      null,
+      testCoinsEnabled: context.read<SettingsBloc>().state.testCoinsEnabled,
+    )
         .map(
-          (coin) => CoinSelectItem(
-            name: coin.name,
-            coinId: coin.abbr,
-            coinProtocol: coin.typeNameWithTestnet,
-            trailing: BalanceText(coin),
-            title: CoinItemBody(coin: coin, size: CoinItemSize.large),
-            leading: CoinIcon(
-              coin.abbr,
-              size: CoinItemSize.large.coinLogo,
+          (coin) => DropdownMenuItem<String>(
+            value: coin.abbr,
+            child: CoinSelectItemWidget(
+              name: coin.name,
+              coinId: coin.abbr,
+              trailing: AssetBalanceText(coin.toSdkAsset(_sdk).id,
+                  activateIfNeeded: false),
+              title: CoinItemBody(coin: coin, size: CoinItemSize.large),
             ),
           ),
         )
@@ -91,7 +98,9 @@ class _CoinSelectionAndAmountInputState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CoinLogo(coin: widget.selectedCoin),
+                  widget.selectedCoin == null
+                      ? AssetLogo.placeholder(isBlank: true)
+                      : AssetLogo.ofId(widget.selectedCoin!.id),
                   const SizedBox(width: 9),
                   CoinNameAndProtocol(widget.selectedCoin, true),
                   const SizedBox(width: 9),
@@ -109,10 +118,11 @@ class _CoinSelectionAndAmountInputState
       content = FrontPlate(child: content);
     }
 
+    final coinsRepository = RepositoryProvider.of<CoinsRepo>(context);
     return CoinDropdown(
       items: _items,
       onItemSelected: (item) =>
-          widget.onItemSelected?.call(coinsBloc.getCoin(item.coinId)),
+          widget.onItemSelected?.call(coinsRepository.getCoin(item)),
       child: content,
     );
   }

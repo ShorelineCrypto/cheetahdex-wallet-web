@@ -1,31 +1,31 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_ui/komodo_ui.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/best_orders/best_orders.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/views/dex/simple/form/tables/coins_table/coins_table_item.dart';
-import 'package:web_dex/views/market_maker_bot/coin_search_dropdown.dart'
-    as coin_dropdown;
 
 class GroupedListView<T> extends StatelessWidget {
   const GroupedListView({
-    super.key,
     required this.items,
     required this.onSelect,
     required this.maxHeight,
+    super.key,
   });
 
   final List<T> items;
-  final Function(T) onSelect;
+  final void Function(T) onSelect;
   final double maxHeight;
 
   @override
   Widget build(BuildContext context) {
     final scrollController = ScrollController();
-    final groupedItems = _groupList(items);
+    final groupedItems = _groupList(context, items);
 
     // Add right padding to the last column if there are grouped items
     // to align the grouped and non-grouped
@@ -35,7 +35,7 @@ class GroupedListView<T> extends StatelessWidget {
             .isNotEmpty;
     final rightPadding = areGroupedItemsPresent
         ? const EdgeInsets.only(right: 52)
-        : const EdgeInsets.all(0);
+        : EdgeInsets.zero;
 
     return Flexible(
       child: ConstrainedBox(
@@ -57,7 +57,7 @@ class GroupedListView<T> extends StatelessWidget {
                       initiallyExpanded: false,
                       title: CoinsTableItem<T>(
                         data: group.value.first,
-                        coin: _createHeaderCoinData(group.value),
+                        coin: _createHeaderCoinData(context, group.value),
                         onSelect: onSelect,
                         isGroupHeader: true,
                         subtitleText: LocaleKeys.nNetworks
@@ -83,49 +83,46 @@ class GroupedListView<T> extends StatelessWidget {
   Widget buildItem(
     BuildContext context,
     T item,
-    dynamic onSelect, {
-    EdgeInsets padding = const EdgeInsets.all(0),
+    void Function(T) onSelect, {
+    EdgeInsets padding = EdgeInsets.zero,
   }) {
     return Padding(
       padding: padding,
       child: CoinsTableItem<T>(
         data: item,
-        coin: getCoin(item),
+        coin: getCoin(context, item),
         onSelect: onSelect,
       ),
     );
   }
 
-  Coin _createHeaderCoinData(List<T> list) {
-    final firstCoin = getCoin(list.first);
-    double totalBalance = list.fold(0, (sum, item) {
-      final coin = getCoin(item);
-      return sum + coin.balance;
-    });
+  Coin _createHeaderCoinData(BuildContext context, List<T> list) {
+    final firstCoin = getCoin(context, list.first);
 
     final coin = firstCoin.dummyCopyWithoutProtocolData();
-
-    coin.balance = totalBalance;
-
+    // Since we can't use 'balance' property directly anymore, we need to
+    // construct the coin without using the balance property
     return coin;
   }
 
-  Map<String, List<T>> _groupList(List<T> list) {
-    Map<String, List<T>> grouped = {};
+  Map<String, List<T>> _groupList(BuildContext context, List<T> list) {
+    final Map<String, List<T>> grouped = {};
     for (final item in list) {
-      final coin = getCoin(item);
+      final coin = getCoin(context, item);
       grouped.putIfAbsent(coin.name, () => []).add(item);
     }
     return grouped;
   }
 
-  Coin getCoin(T item) {
+  Coin getCoin(BuildContext context, T item) {
+    final coinsState = RepositoryProvider.of<CoinsBloc>(context).state;
     if (item is Coin) {
       return item as Coin;
-    } else if (item is coin_dropdown.CoinSelectItem) {
-      return coinsBloc.getCoin(item.coinId)!;
+    } else if (item is SelectItem) {
+      return (coinsState.walletCoins[item.id] ?? coinsState.coins[item.id])!;
     } else {
-      return coinsBloc.getCoin((item as BestOrder).coin)!;
+      final String coinId = (item as BestOrder).coin;
+      return (coinsState.walletCoins[coinId] ?? coinsState.coins[coinId])!;
     }
   }
 }

@@ -4,15 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:rational/rational.dart';
+import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
 import 'package:web_dex/bloc/bridge_form/bridge_bloc.dart';
 import 'package:web_dex/bloc/bridge_form/bridge_event.dart';
 import 'package:web_dex/bloc/bridge_form/bridge_state.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
+import 'package:web_dex/bloc/trading_status/trading_status_bloc.dart';
+import 'package:web_dex/analytics/events/cross_chain_events.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
+import 'package:web_dex/blocs/trading_entities_bloc.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/dex_form_error.dart';
 import 'package:web_dex/model/trade_preimage.dart';
+import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/router/state/routing_state.dart';
 import 'package:web_dex/shared/ui/ui_light_button.dart';
 import 'package:web_dex/shared/utils/balances_formatter.dart';
@@ -24,7 +30,7 @@ import 'package:web_dex/views/bridge/view/bridge_exchange_rate.dart';
 import 'package:web_dex/views/dex/dex_helpers.dart';
 
 class BridgeConfirmation extends StatefulWidget {
-  const BridgeConfirmation({Key? key}) : super(key: key);
+  const BridgeConfirmation({super.key});
 
   @override
   State<BridgeConfirmation> createState() => _BridgeOrderConfirmationState();
@@ -41,14 +47,17 @@ class _BridgeOrderConfirmationState extends State<BridgeConfirmation> {
         context.read<BridgeBloc>().add(const BridgeClear());
         routingState.bridgeState.setDetailsAction(swapUuid);
 
+        final tradingEntitiesBloc =
+            RepositoryProvider.of<TradingEntitiesBloc>(context);
         await tradingEntitiesBloc.fetch();
       },
       builder: (BuildContext context, BridgeState state) {
         final TradePreimage? preimage = state.preimageData?.data;
         if (preimage == null) return const UiSpinner();
+        final coinsRepo = RepositoryProvider.of<CoinsRepo>(context);
 
-        final Coin? sellCoin = coinsBloc.getCoin(preimage.request.base);
-        final Coin? buyCoin = coinsBloc.getCoin(preimage.request.rel);
+        final Coin? sellCoin = coinsRepo.getCoin(preimage.request.base);
+        final Coin? buyCoin = coinsRepo.getCoin(preimage.request.rel);
         final Rational? sellAmount = preimage.request.volume;
         final Rational buyAmount =
             (sellAmount ?? Rational.zero) * preimage.request.price;
@@ -100,7 +109,31 @@ class _BridgeOrderConfirmationState extends State<BridgeConfirmation> {
   }
 
   Future<void> startSwap() async {
-    context.read<BridgeBloc>().add(const BridgeStartSwap());
+    final bloc = context.read<BridgeBloc>();
+    final state = bloc.state;
+    final sellCoin = state.sellCoin;
+    final buyCoin = RepositoryProvider.of<CoinsRepo>(context)
+        .getCoin(state.bestOrder?.coin ?? '');
+    if (sellCoin != null && buyCoin != null) {
+      context.read<AnalyticsBloc>().logEvent(
+            BridgeInitiatedEventData(
+              fromChain: sellCoin.protocolType,
+              toChain: buyCoin.protocolType,
+              asset: sellCoin.abbr,
+              walletType: context
+                      .read<AuthBloc>()
+                      .state
+                      .currentUser
+                      ?.wallet
+                      .config
+                      .type
+                      .name ??
+                  'unknown',
+            ),
+          );
+    }
+
+    bloc.add(const BridgeStartSwap());
   }
 
   void onCancel() {
@@ -241,6 +274,7 @@ class _SendGroup extends StatelessWidget {
           fontSize: 14.0,
           fontWeight: FontWeight.w500,
         );
+    final coinsBloc = RepositoryProvider.of<CoinsRepo>(context);
     final Coin? coin = coinsBloc.getCoin(dto.sellCoin.abbr);
     if (coin == null) return const SizedBox.shrink();
 
@@ -375,22 +409,26 @@ class _ConfirmButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tradingStatusState = context.watch<TradingStatusBloc>().state;
+    final tradingEnabled = tradingStatusState.isEnabled;
+
     return Flexible(
-      child: BlocSelector<BridgeBloc, BridgeState, bool>(
-          selector: (state) => state.inProgress,
-          builder: (context, inProgress) {
-            return Opacity(
-              opacity: inProgress ? 0.8 : 1,
-              child: UiPrimaryButton(
-                key: const Key('bridge-order-confirm-button'),
-                height: 40,
-                prefix: inProgress ? const _ProgressIndicator() : null,
-                text: LocaleKeys.confirm.tr(),
-                onPressed: inProgress ? null : onPressed,
-              ),
-            );
-          }),
-    );
+        child: BlocSelector<BridgeBloc, BridgeState, bool>(
+            selector: (state) => state.inProgress,
+            builder: (context, inProgress) {
+              return Opacity(
+                opacity: inProgress ? 0.8 : 1,
+                child: UiPrimaryButton(
+                  key: const Key('bridge-order-confirm-button'),
+                  height: 40,
+                  prefix: inProgress ? const _ProgressIndicator() : null,
+                  text: tradingEnabled
+                      ? LocaleKeys.confirm.tr()
+                      : LocaleKeys.tradingDisabled.tr(),
+                  onPressed: inProgress || !tradingEnabled ? null : onPressed,
+                ),
+              );
+            }));
   }
 }
 

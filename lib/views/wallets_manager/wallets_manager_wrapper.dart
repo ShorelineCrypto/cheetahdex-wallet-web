@@ -1,6 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:web_dex/blocs/blocs.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/views/wallets_manager/wallets_manager_events_factory.dart';
@@ -11,11 +10,15 @@ class WalletsManagerWrapper extends StatefulWidget {
   const WalletsManagerWrapper({
     required this.eventType,
     this.onSuccess,
-    Key? key = const Key('wallets-manager-wrapper'),
-  }) : super(key: key);
+    this.selectedWallet,
+    this.initialHdMode = false,
+    super.key = const Key('wallets-manager-wrapper'),
+  });
 
   final Function(Wallet)? onSuccess;
   final WalletsManagerEventType eventType;
+  final Wallet? selectedWallet;
+  final bool initialHdMode;
 
   @override
   State<WalletsManagerWrapper> createState() => _WalletsManagerWrapperState();
@@ -25,8 +28,8 @@ class _WalletsManagerWrapperState extends State<WalletsManagerWrapper> {
   WalletType? _selectedWalletType;
   @override
   void initState() {
-    walletsBloc.fetchSavedWallets();
     super.initState();
+    _selectedWalletType = widget.selectedWallet?.config.type;
   }
 
   @override
@@ -55,6 +58,10 @@ class _WalletsManagerWrapperState extends State<WalletsManagerWrapper> {
       walletType: selectedWalletType,
       close: _closeWalletManager,
       onSuccess: widget.onSuccess ?? (_) {},
+      selectedWallet: widget.selectedWallet,
+      initialHdMode: widget.selectedWallet?.config.type == WalletType.hdwallet
+          ? true
+          : widget.initialHdMode,
     );
   }
 
