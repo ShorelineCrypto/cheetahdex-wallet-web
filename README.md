@@ -14,6 +14,9 @@ Welcome to the Cheetahdex Web Wallet open-source repository! This cutting-edge p
 ### Runs on: 
 - ShorelineCrypto Live Web App:  https://app.shorelinecrypto.com
 - Self-hosted at your home linux server/cloud: follow INSTALL.md and below Developer guide to run your own cheetahdex web wallet app at your home or at cloud VPS
+- * Note:
+for other Cheetahdex wallet products on desktop (linux/macOS/windows) or on mobile, please checkout Cheetahdex page at:
+https://cheetahdex.shorelinecrypto.com/
 ----
 
 ### Support on Cheetahdex Web Wallet
