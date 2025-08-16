@@ -20,12 +20,11 @@ enum PriceChartPeriod {
         return '1M';
       case PriceChartPeriod.oneYear:
         return '1Y';
-      default:
-        throw Exception('Unknown interval');
     }
   }
 
-  String get intervalString {
+  // TODO: Localize this
+  String get formatted {
     switch (this) {
       case PriceChartPeriod.oneHour:
         return '1h';
@@ -37,8 +36,6 @@ enum PriceChartPeriod {
         return '1M';
       case PriceChartPeriod.oneYear:
         return '1y';
-      default:
-        throw Exception('Unknown interval');
     }
   }
 }

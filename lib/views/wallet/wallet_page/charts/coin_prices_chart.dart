@@ -1,7 +1,9 @@
 import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:web_dex/generated/codegen_loader.g.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart' hide TextDirection;
+import 'package:komodo_ui/komodo_ui.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/bloc/cex_market_data/price_chart/models/price_chart_data.dart';
 import 'package:web_dex/bloc/cex_market_data/price_chart/models/time_period.dart';
@@ -9,6 +11,7 @@ import 'package:web_dex/bloc/cex_market_data/price_chart/price_chart_bloc.dart';
 import 'package:web_dex/bloc/cex_market_data/price_chart/price_chart_event.dart';
 import 'package:web_dex/bloc/cex_market_data/price_chart/price_chart_state.dart';
 import 'package:web_dex/shared/utils/utils.dart';
+import 'package:web_dex/shared/widgets/coin_select_item_widget.dart';
 
 import 'price_chart_tooltip.dart';
 
@@ -33,11 +36,13 @@ class PriceChartPage extends StatelessWidget {
             return Column(
               children: [
                 MarketChartHeaderControls(
-                  title: const Text('Statistics'),
-                  leadingIcon: CoinIcon(
-                    state.data.firstOrNull?.info.ticker ?? '???',
-                    size: 22,
-                  ),
+                  title: Text(LocaleKeys.statistics.tr()),
+                  leadingIcon: state.data.firstOrNull?.info.ticker == null
+                      ? const Icon(Icons.attach_money, size: 22)
+                      : AssetIcon.ofTicker(
+                          state.data.firstOrNull?.info.ticker ?? '',
+                          size: 22,
+                        ),
                   leadingText: Text(
                     NumberFormat.currency(symbol: '\$', decimalDigits: 4)
                         .format(
@@ -49,7 +54,8 @@ class PriceChartPage extends StatelessWidget {
                   onCoinSelected: (coinId) {
                     context.read<PriceChartBloc>().add(
                           PriceChartCoinsSelected(
-                              coinId == null ? [] : [coinId]),
+                            coinId == null ? [] : [coinId],
+                          ),
                         );
                   },
                   centreAmount:
@@ -64,14 +70,11 @@ class PriceChartPage extends StatelessWidget {
                         );
                   },
                   customCoinItemBuilder: (coinId) {
-                    final coin = state.availableCoins[coinId];
-                    return CoinSelectItem(
-                      coinId: coinId,
-                      trailing: TrendPercentageText(
-                        investmentReturnPercentage:
-                            coin?.selectedPeriodIncreasePercentage ?? 0,
-                      ),
-                      name: coin?.name ?? coinId,
+                    final coin = state.availableCoins[coinId.symbol.common];
+
+                    return CoinSelectItemWidget.dropdownMenuItem(
+                      coinId,
+                      trendPercentage: coin?.selectedPeriodIncreasePercentage,
                     );
                   },
                 ),
@@ -156,8 +159,8 @@ class PriceChartPage extends StatelessWidget {
                           ),
                         );
                       } else {
-                        return const Center(
-                          child: Text('Select an interval to load data'),
+                        return Center(
+                          child: Text(LocaleKeys.priceChartCenterText.tr()),
                         );
                       }
                     },

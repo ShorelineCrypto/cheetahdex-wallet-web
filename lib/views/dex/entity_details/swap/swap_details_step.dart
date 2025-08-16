@@ -5,7 +5,7 @@ import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
-import 'package:web_dex/shared/widgets/auto_scroll_text.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/shared/widgets/copied_text.dart';
 
 class SwapDetailsStep extends StatelessWidget {
@@ -78,10 +78,11 @@ class SwapDetailsStep extends StatelessWidget {
                 padding: const EdgeInsets.all(2),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isProcessedStep || isFailedStep
-                          ? Colors.transparent
-                          : themeData.colorScheme.surface),
+                    shape: BoxShape.circle,
+                    color: isProcessedStep || isFailedStep
+                        ? Colors.transparent
+                        : themeData.colorScheme.surface,
+                  ),
                 ),
               ),
             ),
@@ -91,7 +92,8 @@ class SwapDetailsStep extends StatelessWidget {
                 width: 1,
                 color: isProcessedStep
                     ? theme.custom.progressBarPassedColor
-                    : themeData.textTheme.bodyMedium?.color?.withOpacity(0.3) ??
+                    : themeData.textTheme.bodyMedium?.color
+                            ?.withValues(alpha: 0.3) ??
                         Colors.transparent,
               ),
           ],
@@ -147,13 +149,13 @@ class SwapDetailsStep extends StatelessWidget {
                               size: 20,
                             ),
                             onTap: () =>
-                                launchURL(getTxExplorerUrl(coin, txHash)),
+                                launchURLString(getTxExplorerUrl(coin, txHash)),
                           ),
                         ),
                       ),
-                    )
+                    ),
                   ],
-                )
+                ),
             ],
           ),
         ),
@@ -196,16 +198,18 @@ class SwapDetailsStep extends StatelessWidget {
   }
 
   String _getTimeSpent(BuildContext context) {
-    return LocaleKeys.swapDetailsStepStatusTimeSpent.tr(args: [
-      durationFormat(
-        Duration(milliseconds: timeSpent),
-        DurationLocalization(
-          milliseconds: LocaleKeys.milliseconds.tr(),
-          seconds: LocaleKeys.seconds.tr(),
-          minutes: LocaleKeys.minutes.tr(),
-          hours: LocaleKeys.hours.tr(),
+    return LocaleKeys.swapDetailsStepStatusTimeSpent.tr(
+      args: [
+        durationFormat(
+          Duration(milliseconds: timeSpent),
+          DurationLocalization(
+            milliseconds: LocaleKeys.milliseconds.tr(),
+            seconds: LocaleKeys.seconds.tr(),
+            minutes: LocaleKeys.minutes.tr(),
+            hours: LocaleKeys.hours.tr(),
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }

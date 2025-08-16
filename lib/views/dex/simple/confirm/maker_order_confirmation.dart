@@ -1,14 +1,22 @@
 import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:rational/rational.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
+import 'package:web_dex/blocs/maker_form_bloc.dart';
+import 'package:web_dex/blocs/trading_entities_bloc.dart';
+import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
+import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
+import 'package:web_dex/bloc/trading_status/trading_status_bloc.dart';
+import 'package:web_dex/analytics/events/transaction_events.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/text_error.dart';
 import 'package:web_dex/model/trade_preimage.dart';
+import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/shared/ui/ui_light_button.dart';
 import 'package:web_dex/shared/utils/balances_formatter.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
@@ -21,8 +29,7 @@ import 'package:web_dex/views/dex/simple/form/maker/maker_form_total_fees.dart';
 
 class MakerOrderConfirmation extends StatefulWidget {
   const MakerOrderConfirmation(
-      {Key? key, required this.onCreateOrder, required this.onCancel})
-      : super(key: key);
+      {super.key, required this.onCreateOrder, required this.onCancel});
 
   final VoidCallback onCancel;
   final VoidCallback onCreateOrder;
@@ -37,6 +44,9 @@ class _MakerOrderConfirmationState extends State<MakerOrderConfirmation> {
 
   @override
   Widget build(BuildContext context) {
+    final makerFormBloc = RepositoryProvider.of<MakerFormBloc>(context);
+    final coinsRepository = RepositoryProvider.of<CoinsRepo>(context);
+
     return Container(
       padding: isMobile
           ? const EdgeInsets.only(top: 18.0)
@@ -50,8 +60,9 @@ class _MakerOrderConfirmationState extends State<MakerOrderConfirmation> {
             final preimage = preimageSnapshot.data;
             if (preimage == null) return const UiSpinner();
 
-            final Coin? sellCoin = coinsBloc.getCoin(preimage.request.base);
-            final Coin? buyCoin = coinsBloc.getCoin(preimage.request.rel);
+            final Coin? sellCoin =
+                coinsRepository.getCoin(preimage.request.base);
+            final Coin? buyCoin = coinsRepository.getCoin(preimage.request.rel);
             final Rational? sellAmount = preimage.request.volume;
             final Rational buyAmount =
                 (sellAmount ?? Rational.zero) * preimage.request.price;
@@ -116,6 +127,9 @@ class _MakerOrderConfirmationState extends State<MakerOrderConfirmation> {
   }
 
   Widget _buildConfirmButton() {
+    final tradingState = context.watch<TradingStatusBloc>().state;
+    final bool tradingEnabled = tradingState.isEnabled;
+
     return Opacity(
       opacity: _inProgress ? 0.8 : 1,
       child: UiPrimaryButton(
@@ -131,8 +145,10 @@ class _MakerOrderConfirmationState extends State<MakerOrderConfirmation> {
                   ),
                 )
               : null,
-          onPressed: _inProgress ? null : _startSwap,
-          text: LocaleKeys.confirm.tr()),
+          onPressed: _inProgress || !tradingEnabled ? null : _startSwap,
+          text: tradingEnabled
+              ? LocaleKeys.confirm.tr()
+              : LocaleKeys.tradingDisabled.tr()),
     );
   }
 
@@ -294,8 +310,30 @@ class _MakerOrderConfirmationState extends State<MakerOrderConfirmation> {
       _inProgress = true;
     });
 
-    final TextError? error = await makerFormBloc.makeOrder();
+    final authBloc = context.read<AuthBloc>();
+    final walletType =
+        authBloc.state.currentUser?.wallet.config.type.name ?? '';
+    final makerFormBloc = RepositoryProvider.of<MakerFormBloc>(context);
+    final sellCoin = makerFormBloc.sellCoin!.abbr;
+    final buyCoin = makerFormBloc.buyCoin!.abbr;
+    final networks =
+        '${makerFormBloc.sellCoin!.protocolType},${makerFormBloc.buyCoin!.protocolType}';
+    context.read<AnalyticsBloc>().logEvent(
+          SwapInitiatedEventData(
+            fromAsset: sellCoin,
+            toAsset: buyCoin,
+            networks: networks,
+            walletType: walletType,
+          ),
+        );
 
+    final int callStart = DateTime.now().millisecondsSinceEpoch;
+    final TextError? error = await makerFormBloc.makeOrder();
+    final int durationMs = DateTime.now().millisecondsSinceEpoch - callStart;
+
+    final tradingEntitiesBloc =
+        // ignore: use_build_context_synchronously
+        RepositoryProvider.of<TradingEntitiesBloc>(context);
     await tradingEntitiesBloc.fetch();
 
     // Delay helps to avoid buttons enabled/disabled state blinking
@@ -304,10 +342,29 @@ class _MakerOrderConfirmationState extends State<MakerOrderConfirmation> {
     setState(() => _inProgress = false);
 
     if (error != null) {
+      context.read<AnalyticsBloc>().logEvent(
+            SwapFailedEventData(
+              fromAsset: sellCoin,
+              toAsset: buyCoin,
+              failStage: 'order_submission',
+              walletType: walletType,
+              durationMs: durationMs,
+            ),
+          );
       setState(() => _errorMessage = error.error);
       return;
     }
 
+    context.read<AnalyticsBloc>().logEvent(
+          SwapSucceededEventData(
+            fromAsset: sellCoin,
+            toAsset: buyCoin,
+            amount: makerFormBloc.sellAmount!.toDouble(),
+            fee: 0, // Fee data not available
+            walletType: walletType,
+            durationMs: durationMs,
+          ),
+        );
     makerFormBloc.clear();
     widget.onCreateOrder();
   }

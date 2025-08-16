@@ -1,40 +1,97 @@
 import 'dart:async';
+
 import 'package:bloc/bloc.dart';
-import 'system_health_event.dart';
-import 'system_health_state.dart';
-import 'package:web_dex/shared/utils/utils.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:web_dex/bloc/system_health/system_clock_repository.dart';
+import 'package:web_dex/mm2/mm2_api/mm2_api.dart';
+import 'package:web_dex/mm2/mm2_api/rpc/directly_connected_peers/get_directly_connected_peers.dart';
+
+part 'system_health_event.dart';
+part 'system_health_state.dart';
 
 class SystemHealthBloc extends Bloc<SystemHealthEvent, SystemHealthState> {
-  SystemHealthBloc() : super(SystemHealthInitial()) {
-    on<CheckSystemClock>(_onCheckSystemClock);
-    _startPeriodicCheck();
+  SystemHealthBloc(
+    this._systemClockRepository,
+    this._api, {
+    Duration checkInterval = const Duration(seconds: 60),
+  })  : _checkInterval = checkInterval,
+        super(SystemHealthInitial()) {
+    on<SystemHealthCheckRequested>(
+      _onSystemHealthCheckRequested,
+      transformer: restartable(),
+    );
+    on<SystemHealthPeriodicCheckStarted>(_onSystemHealthPeriodicCheckStarted);
+    on<SystemHealthPeriodicCheckCancelled>(
+      _onSystemHealthPeriodicCheckCancelled,
+    );
+    add(SystemHealthPeriodicCheckStarted());
   }
 
   Timer? _timer;
+  final Duration _checkInterval;
+  final SystemClockRepository _systemClockRepository;
+  final Mm2Api _api;
 
-  void _startPeriodicCheck() {
-    add(CheckSystemClock());
+  void _cancelPeriodicCheck() {
+    _timer?.cancel();
+    _timer = null;
+  }
 
-    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      add(CheckSystemClock());
+  Future<void> _onSystemHealthPeriodicCheckStarted(
+    SystemHealthPeriodicCheckStarted event,
+    Emitter<SystemHealthState> emit,
+  ) async {
+    _cancelPeriodicCheck();
+
+    add(SystemHealthCheckRequested());
+    _timer = Timer.periodic(_checkInterval, (timer) {
+      add(SystemHealthCheckRequested());
     });
   }
 
-  Future<void> _onCheckSystemClock(
-    CheckSystemClock event,
+  Future<void> _onSystemHealthPeriodicCheckCancelled(
+    SystemHealthPeriodicCheckCancelled event,
+    Emitter<SystemHealthState> emit,
+  ) async {
+    _cancelPeriodicCheck();
+  }
+
+  Future<void> _onSystemHealthCheckRequested(
+    SystemHealthCheckRequested event,
     Emitter<SystemHealthState> emit,
   ) async {
     emit(SystemHealthLoadInProgress());
     try {
-      emit(SystemHealthLoadSuccess(await systemClockIsValid()));
-    } catch (_) {
+      final bool systemClockValid =
+          await _systemClockRepository.isSystemClockValid();
+
+      emit(SystemHealthLoadSuccess(systemClockValid));
+    } on Exception catch (_) {
       emit(SystemHealthLoadFailure());
+    }
+  }
+
+  // TODO: add an additional state or banner if there are no peers connected
+  // the current system health check indicates an out-of-sync clock message
+  // to the user, which might not be the reason for too few peers
+  // final bool connectedPeersHealthy = await _arePeersConnected();
+  // ignore: unused_element
+  Future<bool> _arePeersConnected() async {
+    try {
+      final directlyConnectedPeers =
+          await _api.getDirectlyConnectedPeers(GetDirectlyConnectedPeers());
+      final connectedPeersHealthy = directlyConnectedPeers.peers.length >= 2;
+      return connectedPeersHealthy;
+    } on Exception catch (_) {
+      // do not prevent usage if no peers are connected
+      // mm2 api is responsible for logging, so only return result here
+      return false;
     }
   }
 
   @override
   Future<void> close() {
-    _timer?.cancel();
+    _cancelPeriodicCheck();
     return super.close();
   }
 }

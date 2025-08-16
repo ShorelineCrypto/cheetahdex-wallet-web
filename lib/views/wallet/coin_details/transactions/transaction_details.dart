@@ -1,16 +1,19 @@
 import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_defi_types/komodo_defi_types.dart';
+import 'package:komodo_ui/komodo_ui.dart';
+import 'package:komodo_ui/utils.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/mm2/mm2_api/rpc/my_tx_history/transaction.dart';
 import 'package:web_dex/model/coin.dart';
-
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/widgets/copied_text.dart';
+import 'package:web_dex/views/wallet/common/address_copy_button.dart';
 
 class TransactionDetails extends StatelessWidget {
   const TransactionDetails({
@@ -27,10 +30,11 @@ class TransactionDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final EdgeInsets padding = EdgeInsets.only(
-        top: isMobile ? 16 : 0,
-        left: 16,
-        right: 16,
-        bottom: isMobile ? 20 : 30);
+      top: isMobile ? 16 : 0,
+      left: 16,
+      right: 16,
+      bottom: isMobile ? 20 : 30,
+    );
     final scrollController = ScrollController();
 
     return DexScrollbar(
@@ -69,7 +73,7 @@ class TransactionDetails extends StatelessWidget {
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 16),
-                            child: CoinIcon(coin.abbr, size: 32),
+                            child: AssetIcon.ofTicker(coin.abbr, size: 32),
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 6),
@@ -88,7 +92,7 @@ class TransactionDetails extends StatelessWidget {
                     _buildSimpleData(
                       context,
                       title: LocaleKeys.date.tr(),
-                      value: transaction.formattedTime,
+                      value: formatTransactionDateTime(transaction),
                       hasBackground: true,
                     ),
                     _buildFee(context),
@@ -107,11 +111,24 @@ class TransactionDetails extends StatelessWidget {
                     _buildSimpleData(
                       context,
                       title: LocaleKeys.transactionHash.tr(),
-                      value: transaction.txHash,
+                      value: transaction.txHash ?? '',
+                      isCopied: true,
+                      isTruncated: true,
+                    ),
+                    SizedBox(height: 16),
+                    _buildSimpleData(
+                      context,
+                      title: LocaleKeys.from.tr(),
+                      value: transaction.from.first,
                       isCopied: true,
                     ),
-                    const SizedBox(height: 20),
-                    _buildAddresses(isMobile, context),
+                    _buildSimpleData(
+                      context,
+                      title: LocaleKeys.to.tr(),
+                      value: transaction.to.first,
+                      isCopied: true,
+                    ),
+                    SizedBox(height: 16),
                     _buildControls(context, isMobile),
                   ],
                 ),
@@ -123,29 +140,39 @@ class TransactionDetails extends StatelessWidget {
     );
   }
 
-  Widget _buildAddress(BuildContext context,
-      {required String title, required String address}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+  Widget _buildAddress(
+    BuildContext context, {
+    required String title,
+    required String address,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            title,
-            style:
-                Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14),
+          // Title with fixed flex
+          Expanded(
+            flex: 2,
+            child: Text(
+              title,
+              style:
+                  Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14),
+            ),
           ),
-          const SizedBox(width: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
-            child: CopiedText(
-              copiedValue: address,
-              isTruncated: true,
-              padding: const EdgeInsets.symmetric(
-                vertical: 8,
-                horizontal: 16,
-              ),
-              fontSize: 14,
+          // Address and copy button
+          Expanded(
+            flex: 5,
+            child: Row(
+              children: [
+                Expanded(
+                  child: AutoScrollText(
+                    text: address,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AddressCopyButton(address: address),
+              ],
             ),
           ),
         ],
@@ -157,59 +184,33 @@ class TransactionDetails extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(bottom: 10),
-      child: isMobile
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildAddress(
-                  context,
-                  title: LocaleKeys.from.tr(),
-                  address: transaction.from.first,
-                ),
-                _buildAddress(
-                  context,
-                  title: LocaleKeys.to.tr(),
-                  address: transaction.toAddress,
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    child: _buildAddress(
-                      context,
-                      title: LocaleKeys.from.tr(),
-                      address: transaction.from.first,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    child: _buildAddress(
-                      context,
-                      title: LocaleKeys.to.tr(),
-                      address: transaction.toAddress,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAddress(
+            context,
+            title: LocaleKeys.from.tr(),
+            address: transaction.from.first,
+          ),
+          _buildAddress(
+            context,
+            title: LocaleKeys.to.tr(),
+            address: transaction.to.first,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildBalanceChanges(BuildContext context) {
-    final String formatted =
-        formatDexAmt(double.parse(transaction.myBalanceChange).abs());
-    final String sign = transaction.isReceived ? '+' : '-';
+    final String formatted = formatDexAmt(transaction.amount.toDouble().abs());
+    final String sign = transaction.amount.toDouble() > 0 ? '+' : '-';
+    final coinsBloc = RepositoryProvider.of<CoinsRepo>(context);
     final double? usd =
-        coinsBloc.getUsdPriceByAmount(formatted, transaction.coin);
+        coinsBloc.getUsdPriceByAmount(formatted, transaction.assetId.id);
     final String formattedUsd = formatAmt(usd ?? 0);
     final String value =
-        '$sign $formatted ${Coin.normalizeAbbr(transaction.coin)} (\$$formattedUsd)';
+        '$sign $formatted ${Coin.normalizeAbbr(transaction.assetId.id)} (\$$formattedUsd)';
 
     return SelectableText(
       value,
@@ -237,7 +238,7 @@ class TransactionDetails extends StatelessWidget {
                 color: theme.custom.defaultGradientButtonTextColor,
               ),
           onPressed: () {
-            launchURL(getTxExplorerUrl(coin, transaction.txHash));
+            launchURLString(getTxExplorerUrl(coin, transaction.txHash ?? ''));
           },
           text: LocaleKeys.viewOnExplorer.tr(),
         ),
@@ -258,10 +259,11 @@ class TransactionDetails extends StatelessWidget {
   }
 
   Widget _buildFee(BuildContext context) {
-    final String? fee = transaction.feeDetails.feeValue;
-    final String formattedFee =
-        getNumberWithoutExponent(double.parse(fee ?? '').abs().toString());
-    final double? usd = coinsBloc.getUsdPriceByAmount(formattedFee, _feeCoin);
+    final coinsRepository = RepositoryProvider.of<CoinsRepo>(context);
+
+    final String formattedFee = transaction.fee?.formatTotal() ?? '';
+    final double? usd =
+        coinsRepository.getUsdPriceByAmount(formattedFee, _feeCoin);
     final String formattedUsd = formatAmt(usd ?? 0);
 
     final String title = LocaleKeys.fees.tr();
@@ -345,6 +347,7 @@ class TransactionDetails extends StatelessWidget {
     required String value,
     bool hasBackground = false,
     bool isCopied = false,
+    bool isTruncated = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
@@ -369,7 +372,7 @@ class TransactionDetails extends StatelessWidget {
                       constraints: const BoxConstraints(maxHeight: 340),
                       child: CopiedText(
                         copiedValue: value,
-                        isTruncated: true,
+                        isTruncated: isTruncated,
                         padding: const EdgeInsets.symmetric(
                           vertical: 8,
                           horizontal: 16,
@@ -392,8 +395,8 @@ class TransactionDetails extends StatelessWidget {
   }
 
   String get _feeCoin {
-    return transaction.feeDetails.coin.isNotEmpty
-        ? transaction.feeDetails.coin
-        : transaction.coin;
+    return transaction.fee != null && transaction.fee!.coin.isNotEmpty
+        ? transaction.fee!.coin
+        : transaction.assetId.id;
   }
 }

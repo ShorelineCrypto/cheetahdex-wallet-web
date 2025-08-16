@@ -1,8 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:get_it/get_it.dart';
+import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
-import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/text_error.dart';
 
 abstract class ErrorNeedsSetCoinAbbr {
@@ -151,7 +151,9 @@ class WithdrawTransportError
     implements BaseError, ErrorNeedsSetCoinAbbr {
   WithdrawTransportError({
     required String error,
-  }) : _error = error;
+    String? feeCoin,
+  })  : _error = error,
+        _feeCoin = feeCoin;
 
   factory WithdrawTransportError.fromJson(Map<String, dynamic> json) {
     return WithdrawTransportError(
@@ -159,24 +161,26 @@ class WithdrawTransportError
     );
   }
 
-  String _error;
-  late String _feeCoin;
+  final String _error;
+  String? _feeCoin;
 
   static const String type = 'Transport';
 
   @override
   String get message {
-    if (isGasPaymentError && _feeCoin.isNotEmpty) {
+    final hasFeeCoin = _feeCoin != null && _feeCoin!.isNotEmpty;
+
+    if (isGasPaymentError && hasFeeCoin) {
       return '${LocaleKeys.withdrawNotEnoughBalanceForGasError.tr(args: [
-            _feeCoin
+            _feeCoin!
           ])}.';
     }
 
     if (_error.isNotEmpty &&
         _error.contains('insufficient funds for transfer') &&
-        _feeCoin.isNotEmpty) {
+        hasFeeCoin) {
       return LocaleKeys.withdrawNotEnoughBalanceForGasError
-          .tr(args: [_feeCoin]);
+          .tr(args: [_feeCoin!]);
     }
 
     return LocaleKeys.somethingWrong.tr();
@@ -198,13 +202,17 @@ class WithdrawTransportError
 
   @override
   void setCoinAbbr(String coinAbbr) {
-    final Coin? coin = coinsBloc.getCoin(coinAbbr);
-    if (coin == null) {
+    final maybeCoin = GetIt.I<KomodoDefiSdk>()
+        .assets
+        .findAssetsByConfigId(coinAbbr)
+        .singleOrNull;
+
+    if (maybeCoin == null) {
       return;
     }
-    final String? platform = coin.protocolData?.platform;
+    final maybePlatform = maybeCoin.id.parentId?.id;
 
-    _feeCoin = platform ?? coinAbbr;
+    _feeCoin = maybePlatform ?? coinAbbr;
   }
 }
 

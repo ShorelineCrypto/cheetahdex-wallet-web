@@ -1,13 +1,13 @@
 import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/blocs/wallets_repository.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/dispatchers/popup_dispatcher.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/wallet.dart';
-import 'package:web_dex/shared/widgets/auto_scroll_text.dart';
 
 class SettingsResetActivatedCoins extends StatefulWidget {
   const SettingsResetActivatedCoins({Key? key}) : super(key: key);
@@ -37,19 +37,20 @@ class _SettingsResetActivatedCoinsState
     );
   }
 
-  void _showResetPopup() async {
-    await walletsBloc.fetchSavedWallets();
-    PopupDispatcher popupDispatcher = _createPopupDispatcher();
+  Future<void> _showResetPopup() async {
+    final walletsBloc = RepositoryProvider.of<WalletsRepository>(context);
+    final wallets = await walletsBloc.getWallets();
+    PopupDispatcher popupDispatcher = _createPopupDispatcher(wallets);
     popupDispatcher.show();
   }
 
-  PopupDispatcher _createPopupDispatcher() {
+  PopupDispatcher _createPopupDispatcher(List<Wallet> wallets) {
     final textStyle = Theme.of(context).textTheme.bodyMedium;
     return PopupDispatcher(
       borderColor: theme.custom.specificButtonBorderColor,
       barrierColor: isMobile ? Theme.of(context).colorScheme.onSurface : null,
       width: 320,
-      popupContent: walletsBloc.wallets.isEmpty
+      popupContent: wallets.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -66,14 +67,13 @@ class _SettingsResetActivatedCoinsState
                   style: textStyle,
                 ),
                 const SizedBox(height: 8),
-                ...List.generate(walletsBloc.wallets.length, (index) {
+                ...List.generate(wallets.length, (index) {
                   return ListTile(
                     title: AutoScrollText(
-                      text: walletsBloc.wallets[index].name,
+                      text: wallets[index].name,
                       style: textStyle,
                     ),
-                    onTap: () =>
-                        _showConfirmationDialog(walletsBloc.wallets[index]),
+                    onTap: () => _showConfirmationDialog(wallets[index]),
                   );
                 }),
               ]),
@@ -112,12 +112,13 @@ class _SettingsResetActivatedCoinsState
   }
 
   Future<void> _resetSpecificWallet(Wallet wallet) async {
+    final walletsBloc = RepositoryProvider.of<WalletsRepository>(context);
     await walletsBloc.resetSpecificWallet(wallet);
 
     if (!mounted) return;
 
     // Show Dialog
-    showDialog(
+    return showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(LocaleKeys.resetCompleteTitle.tr()),

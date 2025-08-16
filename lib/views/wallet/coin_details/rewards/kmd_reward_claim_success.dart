@@ -2,7 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:web_dex/common/app_assets.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/shared/ui/ui_primary_button.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/views/common/page_header/page_header.dart';
 import 'package:web_dex/views/common/pages/page_layout.dart';
 
@@ -43,7 +43,8 @@ class KmdRewardClaimSuccess extends StatelessWidget {
           Text(
             LocaleKeys.youClaimed.tr(),
             style: TextStyle(
-              color: themeData.textTheme.bodyMedium?.color?.withOpacity(0.4),
+              color:
+                  themeData.textTheme.bodyMedium?.color?.withValues(alpha: 0.4),
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
@@ -60,7 +61,8 @@ class KmdRewardClaimSuccess extends StatelessWidget {
           SelectableText(
             '\$$formattedUsd',
             style: TextStyle(
-              color: themeData.textTheme.bodyMedium?.color?.withOpacity(0.7),
+              color:
+                  themeData.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
               fontWeight: FontWeight.w500,
               fontSize: 14,
             ),

@@ -2,7 +2,6 @@ import 'package:app_theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
-import 'package:web_dex/bloc/auth_bloc/auth_bloc_state.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/model/authorize_mode.dart';
 import 'package:web_dex/model/swap.dart';
@@ -51,7 +50,10 @@ class _BridgePageState extends State<BridgePage> with TickerProviderStateMixin {
           });
         }
       },
-      child: _showSwap ? _buildTradingDetails() : _buildBridgePage(),
+      child: Builder(builder: (context) {
+        final page = _showSwap ? _buildTradingDetails() : _buildBridgePage();
+        return page;
+      }),
     );
   }
 

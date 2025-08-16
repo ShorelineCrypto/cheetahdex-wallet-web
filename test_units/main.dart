@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 
+import 'tests/cex_market_data/binance_repository_test.dart';
 import 'tests/cex_market_data/charts_test.dart';
 import 'tests/cex_market_data/generate_demo_data_test.dart';
 import 'tests/cex_market_data/profit_loss_repository_test.dart';
@@ -18,17 +19,22 @@ import 'tests/formatter/truncate_hash_test.dart';
 import 'tests/helpers/calculate_buy_amount_test.dart';
 import 'tests/helpers/get_sell_amount_test.dart';
 import 'tests/helpers/max_min_rational_test.dart';
-import 'tests/helpers/total_24_change_test.dart';
 import 'tests/helpers/total_fee_test.dart';
 import 'tests/helpers/update_sell_amount_test.dart';
 import 'tests/password/validate_password_test.dart';
 import 'tests/password/validate_rpc_password_test.dart';
 import 'tests/sorting/sorting_test.dart';
+import 'tests/system_health/http_head_time_provider_test.dart';
+import 'tests/system_health/http_time_provider_test.dart';
+import 'tests/system_health/ntp_time_provider_test.dart';
+import 'tests/system_health/system_clock_repository_test.dart';
+import 'tests/system_health/time_provider_registry_test.dart';
 import 'tests/utils/convert_double_to_string_test.dart';
 import 'tests/utils/convert_fract_rat_test.dart';
 import 'tests/utils/double_to_string_test.dart';
 import 'tests/utils/get_fiat_amount_tests.dart';
-import 'tests/utils/get_usd_balance_test.dart';
+import 'tests/utils/transaction_history/sanitize_transaction_test.dart';
+import 'tests/swaps/my_recent_swaps_response_test.dart';
 
 /// Run in terminal flutter test test_units/main.dart
 /// More info at documentation "Unit and Widget testing" section
@@ -50,7 +56,7 @@ void main() {
 
   group('Password:', () {
     testValidateRPCPassword();
-    testValidatePassword();
+    testcheckPasswordRequirements();
   });
 
   group('Sorting:', () {
@@ -58,18 +64,21 @@ void main() {
   });
 
   group('Utils:', () {
-    testUsdBalanceFormatter();
+    // TODO: re-enable or migrate to the SDK
+    // testUsdBalanceFormatter();
     testGetFiatAmount();
     testCustomDoubleToString();
     testRatToFracAndViseVersa();
 
     testDoubleToString();
+    testSanitizeTransaction();
   });
 
   group('Helpers: ', () {
     testMaxMinRational();
     testCalculateBuyAmount();
-    testGetTotal24Change();
+    // TODO: re-enable or migrate to the SDK
+    // testGetTotal24Change();
     testGetTotalFee();
     testGetSellAmount();
     testUpdateSellAmount();
@@ -79,9 +88,22 @@ void main() {
     testEncryptDataTool();
   });
 
+  group('MyRecentSwaps:', () {
+    testMyRecentSwapsResponse();
+  });
+
   group('CexMarketData: ', () {
     testCharts();
+    testFailingBinanceRepository();
     testProfitLossRepository();
     testGenerateDemoData();
+  });
+
+  group('SystemHealth: ', () {
+    testHttpHeadTimeProvider();
+    testSystemClockRepository();
+    testHttpTimeProvider();
+    testNtpTimeProvider();
+    testTimeProviderRegistry();
   });
 }

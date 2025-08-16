@@ -1,14 +1,23 @@
-import 'package:bip39/bip39.dart' as bip39;
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:komodo_defi_types/komodo_defi_type_utils.dart'
+    show MnemonicValidator;
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/model/wallet.dart';
 
-import '../common/pump_and_settle.dart';
-import '../helpers/get_funded_wif.dart';
+import '../common/widget_tester_action_extensions.dart';
+import '../common/widget_tester_pump_extension.dart';
 import 'connect_wallet.dart';
+import 'get_funded_wif.dart';
 
 Future<void> restoreWalletToTest(WidgetTester tester) async {
+  print('🔍 RESTORE WALLET: Starting wallet restoration test');
+
+  final validator = MnemonicValidator();
+  await validator.init();
+
   // Restores wallet to be used in following tests
   final String testSeed = getFundedWif();
   const String walletName = 'my-wallet';
@@ -32,40 +41,49 @@ Future<void> restoreWalletToTest(WidgetTester tester) async {
       find.byKey(const Key('custom-seed-dialog-input'));
   final Finder customSeedDialogOkButton =
       find.byKey(const Key('custom-seed-dialog-ok-button'));
-  const String confirmCustomSeedText = 'I understand';
+  const String confirmCustomSeedText = 'I Understand';
 
   await tester.pumpAndSettle();
+  print('🔍 RESTORE WALLET: Connecting wallet');
   isMobile
       ? await tapOnMobileConnectWallet(tester, WalletType.iguana)
       : await tapOnAppBarConnectWallet(tester, WalletType.iguana);
+
+  print('🔍 RESTORE WALLET: Tapping import wallet button');
   await tester.ensureVisible(importWalletButton);
   await tester.tap(importWalletButton);
   await tester.pumpAndSettle();
 
-  await tester.tap(nameField);
+  print('🔍 RESTORE WALLET: Entering wallet details');
+  await tester.tapAndPump(nameField);
   await tester.enterText(nameField, walletName);
   await tester.enterText(importSeedField, testSeed);
+  await tester.pump();
 
-  if (!bip39.validateMnemonic(testSeed)) {
-    await tester.tap(allowCustomSeedCheckbox);
-    await tester.pumpAndSettle();
+  print('🔍 RESTORE WALLET: Accepting terms');
+  await tester.tapAndPump(eulaCheckBox);
+  await tester.tapAndPump(tocCheckBox);
+
+  final isCustomSeed = validator.validateBip39(testSeed);
+
+  if (isCustomSeed) {
+    print('🔍 RESTORE WALLET: Handling custom seed input');
+    await tester.tapAndPump(allowCustomSeedCheckbox);
     await tester.enterText(customSeedDialogInput, confirmCustomSeedText);
-    await tester.pumpAndSettle();
-    await tester.tap(customSeedDialogOkButton);
-    await tester.pumpAndSettle();
+    await tester.pumpNFrames(5);
+    await tester.tapAndPump(customSeedDialogOkButton);
   }
 
-  await tester.tap(eulaCheckBox);
-  await tester.pumpAndSettle();
-  await tester.tap(tocCheckBox);
+  print('🔍 RESTORE WALLET: Confirming wallet creation');
   await tester.dragUntilVisible(
     importConfirmButton,
     walletsManagerWrapper,
     const Offset(0, -15),
   );
-  await tester.pumpAndSettle();
-  await tester.tap(importConfirmButton);
-  await tester.pumpAndSettle();
+  await tester.pumpNFrames(10);
+  await tester.tapAndPump(importConfirmButton);
+
+  print('🔍 RESTORE WALLET: Setting up password');
   await tester.enterText(passwordField, password);
   await tester.enterText(passwordConfirmField, password);
   await tester.dragUntilVisible(
@@ -73,7 +91,10 @@ Future<void> restoreWalletToTest(WidgetTester tester) async {
     walletsManagerWrapper,
     const Offset(0, -15),
   );
-  await tester.pumpAndSettle();
+  await tester.pumpNFrames(10);
   await tester.tap(importConfirmButton);
-  await pumpUntilDisappear(tester, walletsManagerWrapper);
+
+  print('🔍 RESTORE WALLET: Waiting for completion');
+  await tester.pumpUntilDisappear(walletsManagerWrapper);
+  print('🔍 RESTORE WALLET: Wallet restoration completed');
 }

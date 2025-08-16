@@ -14,6 +14,11 @@ class ThemeModeChanged extends SettingsEvent {
   final ThemeMode mode;
 }
 
+class TestCoinsEnabledChanged extends SettingsEvent {
+  const TestCoinsEnabledChanged({required this.testCoinsEnabled});
+  final bool testCoinsEnabled;
+}
+
 class MarketMakerBotSettingsChanged extends SettingsEvent {
   const MarketMakerBotSettingsChanged(this.settings);
 
@@ -21,4 +26,17 @@ class MarketMakerBotSettingsChanged extends SettingsEvent {
 
   @override
   List<Object> get props => [settings];
+}
+
+class WeakPasswordsAllowedChanged extends SettingsEvent {
+  const WeakPasswordsAllowedChanged({required this.weakPasswordsAllowed});
+  final bool weakPasswordsAllowed;
+
+  @override
+  List<Object> get props => [weakPasswordsAllowed];
+}
+
+class HideZeroBalanceAssetsChanged extends SettingsEvent {
+  const HideZeroBalanceAssetsChanged({required this.hideZeroBalanceAssets});
+  final bool hideZeroBalanceAssets;
 }

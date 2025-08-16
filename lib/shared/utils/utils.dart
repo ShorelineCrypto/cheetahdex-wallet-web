@@ -1,66 +1,81 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:app_theme/app_theme.dart';
-import 'package:bip39/bip39.dart' as bip39;
+import 'package:decimal/decimal.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart'
+    show ReadContext, RepositoryProvider;
+import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:rational/rational.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:web_dex/app_config/app_config.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
+import 'package:web_dex/blocs/trading_entities_bloc.dart'
+    show TradingEntitiesBloc;
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/mm2/mm2.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/coin_type.dart';
-import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/performance_analytics/performance_analytics.dart';
 import 'package:web_dex/services/logger/get_logger.dart';
 import 'package:web_dex/shared/constants.dart';
-import 'package:http/http.dart' as http;
+import 'package:web_dex/shared/widgets/information_popup.dart';
+
 export 'package:web_dex/shared/utils/extensions/async_extensions.dart';
+export 'package:web_dex/shared/utils/extensions/collection_extensions.dart';
+export 'package:web_dex/shared/utils/extensions/legacy_coin_migration_extensions.dart';
+export 'package:web_dex/shared/utils/extensions/sdk_extensions.dart';
 export 'package:web_dex/shared/utils/prominent_colors.dart';
 
-Future<bool> systemClockIsValid() async {
-  try {
-    final response = await http
-        .get(Uri.parse('https://worldtimeapi.org/api/timezone/UTC'))
-        .timeout(const Duration(seconds: 20));
-
-    if (response.statusCode == 200) {
-      final jsonResponse = json.decode(response.body);
-      final apiTimeStr = jsonResponse['datetime'];
-      final apiTime = DateTime.parse(apiTimeStr).toUtc();
-      final localTime = DateTime.now().toUtc();
-      final difference = apiTime.difference(localTime).abs().inSeconds;
-
-      return difference < 60;
-    } else {
-      log('Failed to get time from API');
-      return true; // Do not block the usage
-    }
-  } catch (e) {
-    log('Failed to validate system clock');
-    return true; // Do not block the usage
-  }
-}
-
-void copyToClipBoard(BuildContext context, String str) {
+// TODO: Refactor this (and all its references) to remove the context dependency
+// and/or make it optional, and then use the global `scaffoldKey` instead.
+Future<void> copyToClipBoard(
+  BuildContext context,
+  String payload, [
+  String? message,
+]) async {
+  if (!context.mounted) return;
   final themeData = Theme.of(context);
-  try {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 2),
-      content: Text(
-        LocaleKeys.clipBoard.tr(),
-        style: themeData.textTheme.bodyLarge!.copyWith(
-            color: themeData.brightness == Brightness.dark
-                ? themeData.hintColor
-                : themeData.primaryColor),
-      ),
-    ));
-  } catch (_) {}
 
-  Clipboard.setData(ClipboardData(text: str));
+  try {
+    await Clipboard.setData(ClipboardData(text: payload));
+
+    if (!context.mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.maybeOf(context) ??
+        ScaffoldMessenger.of(scaffoldKey.currentContext!);
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        width: isMobile ? null : 400.0,
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: themeData.colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 12.0),
+            Text(
+              message ?? LocaleKeys.clipBoard.tr(),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  } catch (e) {
+    log('Error copyToClipBoard: $e', isError: true);
+    if (!context.mounted) return; // Show error feedback using SnackBar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Failed to copy to clipboard'),
+        backgroundColor: themeData.colorScheme.error,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 }
 
 /// Converts a double value [dv] to a string representation with specified decimal places [fractions].
@@ -85,8 +100,14 @@ void copyToClipBoard(BuildContext context, String str) {
 /// unit tests: [testCustomDoubleToString]
 String doubleToString(double dv, [int fractions = 8]) {
   final Rational r = Rational.parse(dv.toString());
-  if (r.isInteger) return r.toStringAsFixed(0);
-  String sv = r.toStringAsFixed(fractions > 20 ? 20 : fractions);
+  if (r.isInteger) {
+    return r
+        .toDecimal(scaleOnInfinitePrecision: scaleOnInfinitePrecision)
+        .toStringAsFixed(0);
+  }
+  String sv = r
+      .toDecimal(scaleOnInfinitePrecision: scaleOnInfinitePrecision)
+      .toStringAsFixed(fractions > 20 ? 20 : fractions);
   final dot = sv.indexOf('.');
   // Looks like we already have [cutTrailingZeros]
   sv = sv.replaceFirst(RegExp(r'0+$'), '', dot);
@@ -168,14 +189,15 @@ Map<String, dynamic>? rat2fract(Rational? rat, [bool toLog = true]) {
   }
 }
 
-String generateSeed() => bip39.generateMnemonic();
-
 String getTxExplorerUrl(Coin coin, String txHash) {
   final String explorerUrl = coin.explorerUrl;
   final String explorerTxUrl = coin.explorerTxUrl;
   if (explorerUrl.isEmpty) return '';
 
-  final hash = coin.type == CoinType.iris ? txHash.toUpperCase() : txHash;
+  final hash =
+      coin.type == CoinType.tendermint || coin.type == CoinType.tendermintToken
+          ? txHash.toUpperCase()
+          : txHash;
 
   return coin.need0xPrefixForTxHash && !hash.startsWith('0x')
       ? '$explorerUrl${explorerTxUrl}0x$hash'
@@ -190,6 +212,7 @@ String getAddressExplorerUrl(Coin coin, String address) {
   return '$explorerUrl$explorerAddressUrl$address';
 }
 
+@Deprecated('Use the Protocol class\'s explorer URL methods')
 void viewHashOnExplorer(Coin coin, String address, HashExplorerType type) {
   late String url;
   switch (type) {
@@ -200,13 +223,34 @@ void viewHashOnExplorer(Coin coin, String address, HashExplorerType type) {
       url = getTxExplorerUrl(coin, address);
       break;
   }
-  launchURL(url);
+  launchURLString(url);
 }
 
-Future<void> launchURL(
-  String url, {
-  bool? inSeparateTab,
-}) async {
+extension AssetExplorerUrls on Asset {
+  Uri? txExplorerUrl(String? txHash) {
+    return txHash == null ? null : protocol.explorerTxUrl(txHash);
+  }
+
+  Uri? addressExplorerUrl(String? address) {
+    return address == null ? null : protocol.explorerAddressUrl(address);
+  }
+}
+
+Future<void> openUrl(Uri uri, {bool? inSeparateTab}) async {
+  if (!await canLaunchUrl(uri)) {
+    throw Exception('Could not launch $uri');
+  }
+  await launchUrl(
+    uri,
+    mode: inSeparateTab == null
+        ? LaunchMode.platformDefault
+        : inSeparateTab == true
+            ? LaunchMode.externalApplication
+            : LaunchMode.inAppWebView,
+  );
+}
+
+Future<void> launchURLString(String url, {bool? inSeparateTab}) async {
   final uri = Uri.parse(url);
 
   if (await canLaunchUrl(uri)) {
@@ -223,7 +267,8 @@ Future<void> launchURL(
   }
 }
 
-void log(
+// TODO: deprecate
+Future<void> log(
   String message, {
   String? path,
   StackTrace? trace,
@@ -235,15 +280,23 @@ void log(
   //   final String errorTrace = getInfoFromStackTrace(trace);
   //   logger.write('$errorTrace: $errorOrUsefulData');
   // }
-  if (isTestMode && isError) {
+  const isTestEnv = isTestMode || kDebugMode;
+  if (isTestEnv && isError) {
     // ignore: avoid_print
     print('path: $path');
     // ignore: avoid_print
     print('error: $message');
+    if (trace != null) {
+      // ignore: avoid_print
+      print('trace: $trace');
+    }
   }
 
   try {
     await logger.write(message, path);
+
+    // TODO: Add a `.dispose()` method to the logger library and call it before
+    // the app is disposed.
 
     performance.logTimeWritingLogs(timer.elapsedMilliseconds);
   } catch (e) {
@@ -260,19 +313,19 @@ void log(
 }
 
 /// Returns the ticker from the coin abbreviation.
-/// 
+///
 /// Parameters:
 /// - [abbr] (String): The abbreviation of the coin, including suffixes like the
-/// coin token type (e.g. 'ETH-ERC20', 'BNB-BEP20') and whether the coin is 
+/// coin token type (e.g. 'ETH-ERC20', 'BNB-BEP20') and whether the coin is
 /// a test or OLD coin (e.g. 'ETH_OLD', 'BNB-TEST').
-/// 
+///
 /// Return Value:
 /// - (String): The ticker of the coin, with the suffixes removed.
-/// 
+///
 /// Example Usage:
 /// ```dart
 /// String abbr = 'ETH-ERC20';
-/// 
+///
 /// String ticker = abbr2Ticker(abbr);
 /// print(ticker); // Output: "ETH"
 /// ```
@@ -335,156 +388,6 @@ String abbr2TickerWithSuffix(String abbr) {
 
 final Map<String, String> _abbr2TickerCache = {};
 
-String? getErcTransactionHistoryUrl(Coin coin) {
-  final String? address = coin.address;
-  if (address == null) return null;
-
-  final String? contractAddress = coin.protocolData?.contractAddress;
-
-  // anchor: protocols support
-  switch (coin.type) {
-    case CoinType.erc20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        ethUrl,
-        ercUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // 'ETH', 'ETHR'
-
-    case CoinType.bep20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        bnbUrl,
-        bepUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // 'BNB', 'BNBT'
-    case CoinType.ftm20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        ftmUrl,
-        ftmTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // 'FTM', 'FTMT'
-    case CoinType.arb20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        arbUrl,
-        arbTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // 'ARB'
-    case CoinType.etc:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        etcUrl,
-        '',
-        address,
-        contractAddress,
-        false,
-      ); // ETC
-    case CoinType.avx20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        avaxUrl,
-        avaxTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // AVAX, AVAXT
-    case CoinType.mvr20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        mvrUrl,
-        mvrTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // MVR
-    case CoinType.hco20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        hecoUrl,
-        hecoTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      );
-    case CoinType.plg20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        maticUrl,
-        maticTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // Polygon, MATICTEST
-    case CoinType.sbch:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        '',
-        '',
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      );
-    case CoinType.ubiq:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        '',
-        '',
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // Ubiq
-    case CoinType.hrc20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        '',
-        '',
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // ONE
-    case CoinType.krc20:
-      return _getErcTransactionHistoryUrl(
-        coin.protocolType,
-        kcsUrl,
-        kcsTokenUrl,
-        address,
-        contractAddress,
-        coin.isTestCoin,
-      ); // KCS
-    case CoinType.cosmos:
-    case CoinType.iris:
-    case CoinType.qrc20:
-    case CoinType.smartChain:
-    case CoinType.utxo:
-    case CoinType.slp:
-      return null;
-  }
-}
-
-String _getErcTransactionHistoryUrl(
-  String protocolType,
-  String protocolUrl,
-  String tokenProtocolUrl,
-  String address,
-  String? contractAddress,
-  bool isTestCoin,
-) {
-  return (protocolType == 'ETH'
-          ? '$protocolUrl/$address'
-          : '$tokenProtocolUrl/$contractAddress/$address') +
-      (isTestCoin ? '&testnet=true' : '');
-}
-
 Color getProtocolColor(CoinType type) {
   switch (type) {
     case CoinType.utxo:
@@ -519,9 +422,9 @@ Color getProtocolColor(CoinType type) {
       return const Color.fromRGBO(0, 234, 144, 1);
     case CoinType.krc20:
       return const Color.fromRGBO(66, 229, 174, 1);
-    case CoinType.cosmos:
+    case CoinType.tendermintToken:
       return const Color.fromRGBO(60, 60, 85, 1);
-    case CoinType.iris:
+    case CoinType.tendermint:
       return const Color.fromRGBO(136, 87, 138, 1);
     case CoinType.slp:
       return const Color.fromRGBO(134, 184, 124, 1);
@@ -529,17 +432,14 @@ Color getProtocolColor(CoinType type) {
 }
 
 bool hasTxHistorySupport(Coin coin) {
-  if (coin.enabledType == WalletType.trezor) {
-    return true;
-  }
   switch (coin.type) {
     case CoinType.sbch:
     case CoinType.ubiq:
     case CoinType.hrc20:
       return false;
     case CoinType.krc20:
-    case CoinType.cosmos:
-    case CoinType.iris:
+    case CoinType.tendermint:
+    case CoinType.tendermintToken:
     case CoinType.utxo:
     case CoinType.erc20:
     case CoinType.smartChain:
@@ -559,14 +459,15 @@ bool hasTxHistorySupport(Coin coin) {
 
 String getNativeExplorerUrlByCoin(Coin coin, String? address) {
   final bool hasSupport = hasTxHistorySupport(coin);
+  final coinAddress = address ?? coin.address;
   assert(!hasSupport);
 
   switch (coin.type) {
     case CoinType.sbch:
-    case CoinType.iris:
-      return '${coin.explorerUrl}address/${coin.address}';
-    case CoinType.cosmos:
-      return '${coin.explorerUrl}account/${coin.address}';
+    case CoinType.tendermint:
+      return '${coin.explorerUrl}address/$coinAddress';
+    case CoinType.tendermintToken:
+      return '${coin.explorerUrl}account/$coinAddress';
 
     case CoinType.utxo:
     case CoinType.smartChain:
@@ -584,7 +485,7 @@ String getNativeExplorerUrlByCoin(Coin coin, String? address) {
     case CoinType.ubiq:
     case CoinType.krc20:
     case CoinType.slp:
-      return '${coin.explorerUrl}address/${address ?? coin.address}';
+      return '${coin.explorerUrl}address/$coinAddress';
   }
 }
 
@@ -609,7 +510,7 @@ String? assertString(dynamic value) {
     case double:
       return value.toString();
     default:
-      return value;
+      return value as String?;
   }
 }
 
@@ -618,9 +519,33 @@ int? assertInt(dynamic value) {
 
   switch (value.runtimeType) {
     case String:
-      return int.parse(value);
+      return int.parse(value as String);
     default:
-      return value;
+      return value as int?;
+  }
+}
+
+double assertDouble(dynamic value) {
+  if (value == null) return double.nan;
+
+  switch (value.runtimeType) {
+    case double:
+      return value as double;
+    case int:
+      return (value as int).toDouble();
+    case String:
+      return double.tryParse(value as String) ?? double.nan;
+    case bool:
+      return (value as bool) ? 1.0 : 0.0;
+    case num:
+      return (value as num).toDouble();
+    default:
+      try {
+        return double.parse(value.toString());
+      } catch (e, s) {
+        log('Error converting to double: $e', trace: s, isError: true);
+        return double.nan;
+      }
   }
 }
 
@@ -636,17 +561,140 @@ Future<void> pauseWhile(
   }
 }
 
-Future<void> waitMM2StatusChange(MM2Status status, MM2 mm2,
-    {int waitingTime = 3000}) async {
-  final int start = DateTime.now().millisecondsSinceEpoch;
-
-  while (await mm2.status() != status &&
-      DateTime.now().millisecondsSinceEpoch - start < waitingTime) {
-    await Future<dynamic>.delayed(const Duration(milliseconds: 100));
-  }
-}
-
 enum HashExplorerType {
   address,
   tx,
+}
+
+Future<bool> confirmParentCoinDisable(
+  BuildContext context, {
+  required String parent,
+  required List<String> tokens,
+}) async {
+  if (tokens.isEmpty) return true;
+  final tokenList = tokens.join(', ');
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(LocaleKeys.disable.tr()),
+      content: Text(
+        LocaleKeys.parentCoinDisableWarning.tr(args: [parent, tokenList]),
+      ),
+      actions: [
+        TextButton(
+          child: Text(LocaleKeys.cancel.tr()),
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TextButton(
+          child: Text(LocaleKeys.disable.tr()),
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
+Future<bool> confirmCoinDisableWithOrders(
+  BuildContext context, {
+  required String coin,
+  required int ordersCount,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(LocaleKeys.disable.tr()),
+      content: Text(
+        LocaleKeys.coinDisableOpenOrdersWarning
+            .tr(args: [ordersCount.toString(), coin]),
+      ),
+      actions: [
+        TextButton(
+          child: Text(LocaleKeys.cancel.tr()),
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TextButton(
+          child: Text(LocaleKeys.disable.tr()),
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
+void confirmBeforeDisablingCoin(
+  Coin coin,
+  BuildContext context, {
+  void Function()? onConfirm,
+}) {
+  final tradingEntitiesBloc =
+      RepositoryProvider.of<TradingEntitiesBloc>(context);
+  final bloc = context.read<CoinsBloc>();
+
+  final childCoins = bloc.state.walletCoins.values
+      .where((c) => c.parentCoin?.abbr == coin.abbr)
+      .toList();
+
+  final hasSwap = tradingEntitiesBloc.hasActiveSwap(coin.abbr) ||
+      childCoins.any((c) => tradingEntitiesBloc.hasActiveSwap(c.abbr));
+
+  if (hasSwap) {
+    InformationPopup(
+      context: context,
+    )
+      ..text = LocaleKeys.coinDisableSpan1.tr(args: [coin.abbr])
+      ..show();
+    return;
+  }
+
+  final int openOrders = tradingEntitiesBloc.openOrdersCount(coin.abbr) +
+      childCoins.fold<int>(
+        0,
+        (sum, c) => sum + tradingEntitiesBloc.openOrdersCount(c.abbr),
+      );
+
+  if (openOrders > 0) {
+    confirmCoinDisableWithOrders(
+      context,
+      coin: coin.abbr,
+      ordersCount: openOrders,
+    ).then((confirmed) {
+      if (!confirmed) return;
+      tradingEntitiesBloc.cancelOrdersForCoin(coin.abbr);
+      for (final child in childCoins) {
+        tradingEntitiesBloc.cancelOrdersForCoin(child.abbr);
+      }
+      _confirmDisable(bloc, coin, childCoins, context, onConfirm);
+    });
+    return;
+  }
+
+  _confirmDisable(bloc, coin, childCoins, context, onConfirm);
+  return;
+}
+
+void _confirmDisable(
+  CoinsBloc bloc,
+  Coin coin,
+  List<Coin> childCoins,
+  BuildContext context,
+  void Function()? onConfirm,
+) {
+  if (coin.parentCoin == null) {
+    final childTokens = childCoins.map((c) => c.abbr).toList();
+    confirmParentCoinDisable(
+      context,
+      parent: coin.abbr,
+      tokens: childTokens,
+    ).then((confirmed) {
+      if (confirmed) {
+        bloc.add(CoinsDeactivated([coin.abbr]));
+        onConfirm?.call();
+      }
+    });
+  } else {
+    bloc.add(CoinsDeactivated([coin.abbr]));
+    onConfirm?.call();
+  }
 }

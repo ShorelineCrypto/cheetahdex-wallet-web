@@ -1,0 +1,52 @@
+---
+name: "Setup Android Build Environment"
+description: "Configures Java, Android SDK and signing for Android builds"
+
+inputs:
+  java-version:
+    description: "Java version to use"
+    required: false
+    default: "21"
+  keystore-base64:
+    description: "Base64 encoded Android keystore file"
+    required: false
+  key-alias:
+    description: "Android keystore key alias"
+    required: false
+  store-password:
+    description: "Android keystore password"
+    required: false
+  key-password:
+    description: "Android keystore key password"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: "temurin"
+        cache: "gradle"
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    # "Fixes firebase build error when no valid google-services.json is present"
+    - name: Comment out Google Play Services import
+      shell: bash
+      run: |
+        sed -i 's/id .com\.google\.gms\.google-services./\/\/ id .com\.google\.gms\.google-services./' android/app/build.gradle
+        echo "Google Play Services import commented out"
+
+    - name: Setup Android keystore
+      if: inputs.keystore-base64 != '' && 'KomodoPlatform/komodo-wallet' == github.repository
+      shell: bash
+      run: |
+        echo "${{ inputs.keystore-base64 }}" | base64 --decode > android/app/upload-keystore.jks
+        rm -f android/key.properties # Remove existing file to avoid duplication on successive runs
+        echo "storeFile=upload-keystore.jks" >> android/key.properties
+        echo "keyAlias=${{ inputs.key-alias }}" >> android/key.properties
+        echo "storePassword=${{ inputs.store-password }}" >> android/key.properties
+        echo "keyPassword=${{ inputs.key-password }}" >> android/key.properties

@@ -1,11 +1,11 @@
 import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:komodo_ui/komodo_ui.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/shared/utils/utils.dart';
-import 'package:web_dex/shared/widgets/coin_icon.dart';
 import 'package:web_dex/shared/widgets/truncate_middle_text.dart';
 
 class ContractAddressButton extends StatelessWidget {
@@ -23,8 +23,9 @@ class ContractAddressButton extends StatelessWidget {
         onTap: coin.explorerUrl.isEmpty
             ? null
             : () {
-                launchURL(
-                    '${coin.explorerUrl}address/${coin.protocolData?.contractAddress ?? ''}');
+                launchURLString(
+                  '${coin.explorerUrl}address/${coin.protocolData?.contractAddress ?? ''}',
+                );
               },
         child: isMobile
             ? _ContractAddressMobile(coin)
@@ -91,7 +92,7 @@ class _ContractAddressDesktop extends StatelessWidget {
                   height: 16,
                   child: _ContractAddressCopyButton(coin),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -118,7 +119,7 @@ class _ContractAddressValue extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.max,
       children: [
-        CoinIcon(
+        AssetIcon.ofTicker(
           coin.protocolData?.platform ?? '',
           size: 12,
         ),
@@ -133,12 +134,14 @@ class _ContractAddressValue extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.w500, fontSize: 11),
         ),
         Flexible(
-          child: TruncatedMiddleText(coin.protocolData?.contractAddress ?? '',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              )),
+          child: TruncatedMiddleText(
+            coin.protocolData?.contractAddress ?? '',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
         ),
       ],
     );
@@ -176,8 +179,11 @@ class _ContractAddressTitle extends StatelessWidget {
       style: Theme.of(context).textTheme.titleSmall!.copyWith(
             fontSize: 9,
             fontWeight: FontWeight.w500,
-            color:
-                Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(.45),
+            color: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color
+                ?.withValues(alpha: .45),
           ),
     );
   }

@@ -3,19 +3,22 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
+import 'package:komodo_defi_types/komodo_defi_types.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
 import 'package:web_dex/bloc/security_settings/security_settings_bloc.dart';
 import 'package:web_dex/bloc/security_settings/security_settings_event.dart';
-import 'package:web_dex/blocs/blocs.dart';
+import 'package:web_dex/bloc/settings/settings_bloc.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/shared/utils/validators.dart';
 import 'package:web_dex/shared/widgets/password_visibility_control.dart';
 import 'package:web_dex/views/common/page_header/page_header.dart';
-import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 
 class PasswordUpdatePage extends StatefulWidget {
-  const PasswordUpdatePage({Key? key}) : super(key: key);
+  const PasswordUpdatePage({super.key});
 
   @override
   State<PasswordUpdatePage> createState() => _PasswordUpdatePageState();
@@ -44,7 +47,7 @@ class _PasswordUpdatePageState extends State<PasswordUpdatePage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withOpacity(.3),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: .3),
           borderRadius: BorderRadius.circular(18.0)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -101,7 +104,7 @@ class _PasswordUpdatePageState extends State<PasswordUpdatePage> {
 }
 
 class _FormView extends StatefulWidget {
-  const _FormView({Key? key, required this.onSuccess}) : super(key: key);
+  const _FormView({required this.onSuccess});
 
   final VoidCallback onSuccess;
 
@@ -173,35 +176,50 @@ class _FormViewState extends State<_FormView> {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    final Wallet? wallet = currentWalletBloc.wallet;
-    if (wallet == null) return;
-    final String password = _newController.text;
 
-    if (_oldController.text == password) {
+    final currentPassword = _oldController.text;
+    final newPassword = _newController.text;
+
+    if (currentPassword == newPassword) {
       setState(() {
         _error = LocaleKeys.usedSamePassword.tr();
       });
       return;
     }
 
-    final bool isPasswordUpdated = await currentWalletBloc.updatePassword(
-      _oldController.text,
-      password,
-      wallet,
-    );
+    try {
+      final sdk = RepositoryProvider.of<KomodoDefiSdk>(context);
+      await sdk.auth.updatePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
 
-    if (!isPasswordUpdated) {
-      setState(() {
-        _error = LocaleKeys.passwordNotAccepted.tr();
-      });
-      return;
-    } else {
       setState(() => _error = null);
-    }
+      _newController.text = '';
+      _confirmController.text = '';
+      widget.onSuccess();
+    } catch (e) {
+      setState(() {
+        if (e is! AuthException) {
+          _error = LocaleKeys.passwordNotAccepted.tr();
+          return;
+        }
 
-    _newController.text = '';
-    _confirmController.text = '';
-    widget.onSuccess();
+        switch (e.type) {
+          case AuthExceptionType.incorrectPassword:
+            _error = LocaleKeys.incorrectPassword.tr();
+            break;
+          case AuthExceptionType.unauthorized:
+            _error = LocaleKeys.noActiveWallet.tr();
+            break;
+          case AuthExceptionType.apiConnectionError:
+            _error = LocaleKeys.activationFailedMessage.tr();
+            break;
+          default:
+            _error = LocaleKeys.passwordNotAccepted.tr();
+        }
+      });
+    }
   }
 
   void _onVisibilityChange(bool isPasswordObscured) {
@@ -229,10 +247,9 @@ class _CurrentField extends StatefulWidget {
 }
 
 class _CurrentFieldState extends State<_CurrentField> {
-  String _seedError = '';
-
   @override
   Widget build(BuildContext context) {
+    final currentWallet = context.read<AuthBloc>().state.currentUser?.wallet;
     return _PasswordField(
       hintText: LocaleKeys.currentPassword.tr(),
       controller: widget.controller,
@@ -242,30 +259,14 @@ class _CurrentFieldState extends State<_CurrentField> {
           return LocaleKeys.passwordIsEmpty.tr();
         }
 
-        if (_seedError.isNotEmpty) {
-          final result = _seedError;
-          _seedError = '';
-          return result;
-        }
-
-        final Wallet? currentWallet = currentWalletBloc.wallet;
         if (currentWallet == null) return LocaleKeys.walletNotFound.tr();
 
-        _validateSeed(currentWallet, password);
         return null;
       },
       suffixIcon: PasswordVisibilityControl(
         onVisibilityChange: widget.onVisibilityChange,
       ),
     );
-  }
-
-  Future<void> _validateSeed(Wallet currentWallet, String password) async {
-    _seedError = '';
-    final seed = await currentWallet.getSeed(password);
-    if (seed.isNotEmpty) return;
-    _seedError = LocaleKeys.invalidPasswordError.tr();
-    widget.formKey.currentState?.validate();
   }
 }
 
@@ -278,7 +279,7 @@ class _NewField extends StatelessWidget {
 
   final TextEditingController controller;
   final bool isObscured;
-  final Function(bool) onVisibilityChange;
+  final void Function(bool) onVisibilityChange;
 
   @override
   Widget build(BuildContext context) {
@@ -286,14 +287,23 @@ class _NewField extends StatelessWidget {
       hintText: LocaleKeys.enterNewPassword.tr(),
       controller: controller,
       isObscured: isObscured,
-      validator: (String? password) => validatePassword(
-        password ?? '',
-        LocaleKeys.walletCreationFormatPasswordError.tr(),
-      ),
+      validator: (password) => _validatePassword(password, context),
       suffixIcon: PasswordVisibilityControl(
         onVisibilityChange: onVisibilityChange,
       ),
     );
+  }
+
+  String? _validatePassword(String? passwordText, BuildContext context) {
+    final settingsBlocState = context.read<SettingsBloc>().state;
+    final allowWeakPassword = settingsBlocState.weakPasswordsAllowed;
+    final password = passwordText ?? '';
+
+    if (allowWeakPassword) {
+      return null;
+    }
+
+    return validatePassword(password);
   }
 }
 
@@ -361,7 +371,7 @@ class _PasswordField extends StatelessWidget {
 }
 
 class _SuccessView extends StatelessWidget {
-  const _SuccessView({Key? key, required this.back}) : super(key: key);
+  const _SuccessView({required this.back});
 
   final VoidCallback back;
 
