@@ -55,7 +55,7 @@ fi
 # Set to "true" to upgrade all packages, "false" to only upgrade SDK packages
 UPGRADE_ALL_PACKAGES=${UPGRADE_ALL_PACKAGES:-false}
 # Branch to target for PR creation
-TARGET_BRANCH=${TARGET_BRANCH:-"dev"}
+TARGET_BRANCH=${TARGET_BRANCH:-"cheetah"}
 
 # Get the current date for branch naming and commit messages
 CURRENT_DATE=$(date '+%Y-%m-%d')
