@@ -321,7 +321,7 @@ done
 
 # Add the SDK rolls image at the bottom of the changes file
 if [ "$ROLLS_MADE" = true ]; then
-  echo "![SDK Package Rolls](https://raw.githubusercontent.com/KomodoPlatform/komodo-wallet/aaf19e4605c62854ba176bf1ea75d75b3cb48df9/docs/assets/sdk-rolls.png)" >> "$CHANGES_FILE"
+  echo "![SDK Package Rolls](https://raw.githubusercontent.com/ShorelineCrypto/cheetahdex-wallet-web/aaf19e4605c62854ba176bf1ea75d75b3cb48df9/docs/assets/sdk-rolls.png)" >> "$CHANGES_FILE"
   echo "" >> "$CHANGES_FILE"
   
   # Clean up all .bak files to avoid committing them
