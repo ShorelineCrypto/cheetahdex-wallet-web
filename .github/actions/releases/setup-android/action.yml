@@ -41,7 +41,7 @@ runs:
         echo "Google Play Services import commented out"
 
     - name: Setup Android keystore
-      if: inputs.keystore-base64 != '' && 'KomodoPlatform/komodo-wallet' == github.repository
+      if: inputs.keystore-base64 != '' && 'ShorelineCrypto/cheetahdex-wallet-web' == github.repository
       shell: bash
       run: |
         echo "${{ inputs.keystore-base64 }}" | base64 --decode > android/app/upload-keystore.jks

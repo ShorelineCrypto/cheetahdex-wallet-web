@@ -1,16 +1,16 @@
-# Installation Guide for cheetahdex-wallet-web
+# Installation Guide for Cheetahdex Wallet Web App and Android App 
 
-For high level understanding of Cheetahdex Web Wallet  that this code base forked from, please checkout Komodo developer guide on README front page.
+For high level understanding of Cheetahdex Wallet  that this code base forked from, please checkout Komodo developer guide on README front page.
 
-Cheetahdex Web Wallet pretty much preserved all the features in the open sourced Komodo Web Wallet app, with DEX enabled and some logo/name changes.
+Cheetahdex Wallet pretty much preserved all the features in the open sourced Komodo Wallet app, with DEX enabled and some logo/name changes.
 
 ## Hardware Requirement - X86_64 Linux server at home or at cloud VPS
 
 The whole package was tested successfully in linux (ubuntu 22.04) on x64 hardware. Cheetahdex Web Wallet app does not use
 lots of disk space, nor CPU resources so that any reasonable home PC linux or linux on cloud VPS should work fine.
 
-## Dependency Requirement - flutter and android-studio
-Cheetahdex Web Wallet app is flutter based app.  You can compile and run self-hosted web app in Ubuntu 22.04 easily by meeting flutter and android-studio 
+## Dependency Requirement for web/android wallet - flutter and android-studio
+Cheetahdex Web/Android Wallet app is flutter based app.  You can compile your own android apk, or compile and run self-hosted web app in Ubuntu 22.04 easily by meeting flutter and android-studio 
 requirement below. Check out Komodo Developer Guide on README for details.
 - Install latest version of android studio.  For easily navigate and install proper features of android-studio, a x-windows GUI on Ubuntu is recommended.
 - Install flutter on proper version under your home directory.  Too new or too old version of flutter won't compile this release.
@@ -20,34 +20,34 @@ Finally, check dependency with below command:
   flutter doctor -v
 ```
 
-ShorelineCrypto production web app was compiled successfully under below dependency versions in Ubuntu 22.04:
+ShorelineCrypto production web/android app was compiled successfully under below dependency versions in Ubuntu 22.04:
 ```
- [!] Flutter (Channel [user-branch], 3.32.7, on Ubuntu 22.04.5 LTS 6.8.0-65-generic, locale en_US.UTF-8) [88ms]
+ [!] Flutter (Channel [user-branch], 3.32.7, on Ubuntu 22.04.5 LTS 6.8.0-79-generic, locale en_US.UTF-8) [137ms]
     ! Flutter version 3.32.7 on channel [user-branch] at /home/hlu/flutter
       Currently on an unknown channel. Run `flutter channel` to switch to an official channel.
       If that doesn't fix the issue, reinstall Flutter by following instructions at https://flutter.dev/setup.
     ! Upstream repository unknown source is not a standard remote.
       Set environment variable "FLUTTER_GIT_URL" to unknown source to dismiss this error.
-    • Framework revision d7b523b356 (4 weeks ago), 2025-07-15 17:03:46 -0700
+    • Framework revision d7b523b356 (8 weeks ago), 2025-07-15 17:03:46 -0700
     • Engine revision 39d6d6e699
     • Dart version 3.8.1
     • DevTools version 2.45.1
     • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
 
-[!] Android toolchain - develop for Android devices (Android SDK version 29.0.3) [156ms]
-    • Android SDK at /usr/lib/android-sdk
-    ✗ cmdline-tools component is missing.
-      Try installing or updating Android Studio.
-      Alternatively, download the tools from https://developer.android.com/studio#command-line-tools-only and make sure to set the ANDROID_HOME environment variable.
-      See https://developer.android.com/studio/command-line for more details.
-    ✗ Android license status unknown.
-      Run `flutter doctor --android-licenses` to accept the SDK licenses.
-      See https://flutter.dev/to/linux-android-setup for more details.
+[✓] Android toolchain - develop for Android devices (Android SDK version 35.0.0) [1,813ms]
+    • Android SDK at /home/hlu/Android/Sdk
+    • Platform android-35, build-tools 35.0.0
+    • ANDROID_HOME = /home/hlu/android-studio
+    • Java binary at: /home/hlu/android-studio/jbr/bin/java
+      This is the JDK bundled with the latest Android Studio installation on this machine.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
+    • All Android licenses accepted.
 
-[✓] Chrome - develop for the web [30ms]
+[✓] Chrome - develop for the web [28ms]
     • Chrome at google-chrome
 
-[✓] Linux toolchain - develop for Linux desktop [541ms]
+[✓] Linux toolchain - develop for Linux desktop [220ms]
     • Ubuntu clang version 14.0.0-1ubuntu1.1
     • cmake version 3.22.1
     • ninja version 1.10.1
@@ -63,19 +63,19 @@ ShorelineCrypto production web app was compiled successfully under below depende
       🔨 https://plugins.jetbrains.com/plugin/6351-dart
     • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
 
-[✓] Connected device (2 available) [3.2s]
-    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-65-generic
-    • Chrome (web)    • chrome • web-javascript • Google Chrome 139.0.7258.66
+[✓] Connected device (2 available) [160ms]
+    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-79-generic
+    • Chrome (web)    • chrome • web-javascript • Google Chrome 139.0.7258.154
 
-[✓] Network resources [496ms]
+[✓] Network resources [549ms]
     • All expected network resources are available.
 
-! Doctor found issues in 2 categories.
+! Doctor found issues in 1 category.
 
 ```
 
-
-## Step 1 - compile cheetahdex-wallet-web
+## Cheetahdex Wallet Web App
+### Step 1 - compile cheetahdex-wallet web app
 
 To compile your self-hosted web app, run below
 
@@ -93,7 +93,7 @@ If above command runs successfully, it will say that coins has been updated, ple
 
 Now you should see the notice that web app has been compiled successfully at terminal. 
 
-## Step 2 - Run Web App
+### Step 2 - Run Web App
 
 run below:
 ```
@@ -102,7 +102,7 @@ run below:
 
 Now Cheetahdex Web Wallet should be running at "http://localhost:8888" web URL.  This web URL can only be accessed from same host machine that web app runs on. 
 
-## Step 3 - Set up https with certbot/nginx
+### Step 3 - Set up https with certbot/nginx
 
 The new web version of Komodo Wallet imposed security enhancement feature that can only run through localhost host. Cheetahdex Web Wallet removed geo blocker restriction of komodo web wallet, however, this localhost restriction stays.
 
@@ -120,9 +120,24 @@ sudo certbot --nginx
 
 Will create a cert file and key file, and update your nginx `sites-enabled` config.
 
+## Cheetahdex Wallet Android App
+### Step 1 - compile cheetahdex-wallet android app
 
+To compile your own android app apk file, run below
 
+```
+  git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
+  cd cheetahdex-wallet-web && git checkout cheetahdex
+  flutter build apk
+```
 
+If above command runs successfully, it may say that coins has been updated, please re-compile android app again. Now re-compile:
+
+```commandline
+    flutter build apk
+```
+
+Now your android apk files will be built successfully under 'build' folder.  Transfer apk file into your android phone/pad,  install and run the android app for Cheetahdex Wallet.
 
 
 

@@ -4,7 +4,7 @@ name: Roll SDK Packages
 # This workflow automates updating SDK package dependencies from the external komodo-defi-sdk-flutter repository
 # It creates or updates a pull request with the necessary changes to pubspec.yaml and pubspec.lock files
 # For more information on how this works or how to run the script manually, see:
-# https://github.com/KomodoPlatform/komodo-wallet/blob/dev/docs/SDK_DEPENDENCY_MANAGEMENT.md
+# https://github.com/ShorelineCrypto/cheetahdex-wallet-web/blob/dev/docs/SDK_DEPENDENCY_MANAGEMENT.md
 
 on:
   schedule:
