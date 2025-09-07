@@ -15,3 +15,5 @@ RUN curl -O https://storage.googleapis.com/flutter_infra_release/releases/stable
     flutter config --no-analytics  && \
     yes "y" | flutter doctor --android-licenses && \
     flutter doctor
+
+RUN sudo chmod a+rwx  /app
