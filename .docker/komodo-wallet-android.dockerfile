@@ -9,6 +9,7 @@ USER $USER
 
 WORKDIR /app
 COPY --chown=$USER:$USER . .
+RUN sudo chmod a+rwx  /app
 
 RUN curl -O https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz && \
     tar -xvf flutter_linux_${FLUTTER_VERSION}-stable.tar.xz -C ${HOME} && \
