@@ -169,7 +169,7 @@ for PUBSPEC in $PUBSPEC_FILES; do
   
   # Special handling for the root project
   if [ "$PROJECT_DIR" = "$REPO_ROOT" ]; then
-    PROJECT_NAME="Root Project (komodo-wallet)"
+    PROJECT_NAME="Root Project (cheetahdex-wallet)"
     echo "Processing ROOT PROJECT ($PROJECT_DIR)"
   else
     echo "Processing $PROJECT_NAME ($PROJECT_DIR)"

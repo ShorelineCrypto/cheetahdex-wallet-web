@@ -61,7 +61,7 @@ jobs:
           channelId: "${{ steps.get_preview_channel_id.outputs.preview_channel_id }}"
           target: walletrc
           expires: 7d
-          projectId: komodo-wallet-official
+          projectId: cheetahdex-wallet-official
 
       - name: Deploy Cheetahdex Wallet Web dev preview (`dev` branch)
         if: github.ref == 'refs/heads/dev' && github.event_name != 'workflow_dispatch'
@@ -71,4 +71,4 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KOMODO_WALLET_OFFICIAL }}"
           channelId: dev-preview
           target: walletrc
-          projectId: komodo-wallet-official
+          projectId: cheetahdex-wallet-official

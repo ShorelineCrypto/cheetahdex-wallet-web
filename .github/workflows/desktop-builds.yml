@@ -21,17 +21,17 @@ jobs:
             runner: macos-latest
             build_command: flutter build macos --no-pub --release
             artifact_path: build/macos/Build/Products/Release/*.app
-            artifact_name: komodo-wallet-macos
+            artifact_name: cheetahdex-wallet-macos
           - platform: windows
             runner: windows-latest
             build_command: flutter build windows --no-pub --release
             artifact_path: build/windows/x64/runner/Release/*
-            artifact_name: komodo-wallet-windows
+            artifact_name: cheetahdex-wallet-windows
           - platform: linux
             runner: ubuntu-latest
             build_command: flutter build linux --no-pub --release
             artifact_path: build/linux/x64/release/bundle/*
-            artifact_name: komodo-wallet-linux
+            artifact_name: cheetahdex-wallet-linux
 
     steps:
       - uses: actions/checkout@v4
