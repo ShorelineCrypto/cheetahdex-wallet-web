@@ -12,7 +12,7 @@ on:
     - cron: "0 0 * * *"
   push:
     branches:
-      - dev
+      - cheetah
   # Allow manual trigger
   workflow_dispatch:
     inputs:
@@ -57,7 +57,7 @@ jobs:
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
             TARGET_BRANCH="${{ github.base_ref }}"
           else
-            TARGET_BRANCH="dev"
+            TARGET_BRANCH="cheetah"
           fi
           echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
 
