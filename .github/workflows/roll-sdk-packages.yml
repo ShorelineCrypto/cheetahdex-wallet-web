@@ -24,7 +24,7 @@ on:
       target_branch:
         description: "Target branch for PR creation"
         required: false
-        default: "dev"
+        default: "cheetah"
         type: string
 
 jobs:
