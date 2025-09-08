@@ -1,4 +1,4 @@
-# filepath: /Users/charl/Code/UTXO/komodo-wallet/.github/workflows/roll-sdk-packages.yml
+# filepath: /Users/charl/Code/UTXO/cheetahdex-wallet/.github/workflows/roll-sdk-packages.yml
 name: Roll SDK Packages
 
 # This workflow automates updating SDK package dependencies from the external komodo-defi-sdk-flutter repository
@@ -12,7 +12,7 @@ on:
     - cron: "0 0 * * *"
   push:
     branches:
-      - dev
+      - cheetah
   # Allow manual trigger
   workflow_dispatch:
     inputs:
@@ -24,7 +24,7 @@ on:
       target_branch:
         description: "Target branch for PR creation"
         required: false
-        default: "dev"
+        default: "cheetah"
         type: string
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
             TARGET_BRANCH="${{ github.base_ref }}"
           else
-            TARGET_BRANCH="dev"
+            TARGET_BRANCH="cheetah"
           fi
           echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
 

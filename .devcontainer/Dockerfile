@@ -113,5 +113,5 @@ RUN cd /opt && \
     yes "y" | flutter doctor --android-licenses && \
     flutter doctor && \
     flutter update-packages --verify-only  && \
-    mkdir -p /workspaces/komodo-wallet && \
-    chown -R $USER_ID:$USER_ID /workspaces/komodo-wallet
+    mkdir -p /workspaces/cheetahdex-wallet && \
+    chown -R $USER_ID:$USER_ID /workspaces/cheetahdex-wallet

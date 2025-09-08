@@ -52,7 +52,7 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KOMODO_WALLET_OFFICIAL }}"
           channelId: live
           target: walletrc
-          projectId: komodo-wallet-official
+          projectId: cheetahdex-wallet-official
 
       - name: Deploy Cheetahdex Wallet Web RC (`main` branch)
         if: github.ref == 'refs/heads/main'
@@ -62,4 +62,4 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KOMODO_WALLET_OFFICIAL }}"
           channelId: live
           target: prodrc
-          projectId: komodo-wallet-official
+          projectId: cheetahdex-wallet-official
