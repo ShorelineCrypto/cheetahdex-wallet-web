@@ -123,11 +123,16 @@ Will create a cert file and key file, and update your nginx `sites-enabled` conf
 ## Cheetahdex Wallet Android App
 ### Step 1 - compile cheetahdex-wallet android app
 
-To compile your own android app apk file, run below
+There 3 ways to compile android apk installation file: github action CI/CD method, docker method and flutter build method. Here android apk release was obtained through flutter method.
+
+To compile your own android app apk file, make sure your linux server (ubuntu 22.04) met the flutter/android studio dependency as shown above, then run below
 
 ```
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
   cd cheetahdex-wallet-web && git checkout cheetahdex
+  flutter clean
+  flutter pub get
+  dart run flutter_launcher_icons
   flutter build apk
 ```
 
@@ -138,6 +143,20 @@ If above command runs successfully, it may say that coins has been updated, plea
 ```
 
 Now your android apk files will be built successfully under 'build' folder.  Transfer apk file into your android phone/pad,  install and run the android app for Cheetahdex Wallet.
+
+### Step 2 - Trouble shoot Icon/Logo Failure
+
+If step 1 failed with message like "duplicate error on color.xml bla bla", or the new icon/logo in your local branch does not show up fresh, you can clear graddle/kotlin cache with below command:
+
+```commandline
+  cd android/
+  ./gradlew clean
+  cd ..
+  flutter clean
+  flutter pub get
+  dart run flutter_launcher_icons
+  flutter build apk
+```
 
 
 
