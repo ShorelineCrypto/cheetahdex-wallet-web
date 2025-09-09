@@ -3,8 +3,8 @@
     "context": "..",
     "dockerFile": "Dockerfile",
     "remoteUser": "komodo",
-    "workspaceFolder": "/workspaces/komodo-wallet",
-    "postCreateCommand": "sudo chown -R komodo:komodo /workspaces/komodo-wallet",
+    "workspaceFolder": "/workspaces/cheetahdex-wallet",
+    "postCreateCommand": "sudo chown -R komodo:komodo /workspaces/cheetahdex-wallet",
     "postAttachCommand": "flutter pub get",
     "runArgs": [
         "--privileged",

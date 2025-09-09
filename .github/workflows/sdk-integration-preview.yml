@@ -149,7 +149,7 @@ jobs:
           channelId: "${{ steps.get_preview_channel_id.outputs.preview_channel_id }}"
           target: walletrc
           expires: 7d
-          projectId: komodo-wallet-official
+          projectId: cheetahdex-wallet-official
 
       - name: Display deployment information
         shell: bash

@@ -55,7 +55,7 @@ fi
 # Set to "true" to upgrade all packages, "false" to only upgrade SDK packages
 UPGRADE_ALL_PACKAGES=${UPGRADE_ALL_PACKAGES:-false}
 # Branch to target for PR creation
-TARGET_BRANCH=${TARGET_BRANCH:-"dev"}
+TARGET_BRANCH=${TARGET_BRANCH:-"cheetah"}
 
 # Get the current date for branch naming and commit messages
 CURRENT_DATE=$(date '+%Y-%m-%d')
@@ -169,7 +169,7 @@ for PUBSPEC in $PUBSPEC_FILES; do
   
   # Special handling for the root project
   if [ "$PROJECT_DIR" = "$REPO_ROOT" ]; then
-    PROJECT_NAME="Root Project (komodo-wallet)"
+    PROJECT_NAME="Root Project (cheetahdex-wallet)"
     echo "Processing ROOT PROJECT ($PROJECT_DIR)"
   else
     echo "Processing $PROJECT_NAME ($PROJECT_DIR)"
@@ -321,7 +321,7 @@ done
 
 # Add the SDK rolls image at the bottom of the changes file
 if [ "$ROLLS_MADE" = true ]; then
-  echo "![SDK Package Rolls](https://raw.githubusercontent.com/KomodoPlatform/komodo-wallet/aaf19e4605c62854ba176bf1ea75d75b3cb48df9/docs/assets/sdk-rolls.png)" >> "$CHANGES_FILE"
+  echo "![SDK Package Rolls](https://raw.githubusercontent.com/ShorelineCrypto/cheetahdex-wallet-web/aaf19e4605c62854ba176bf1ea75d75b3cb48df9/docs/assets/sdk-rolls.png)" >> "$CHANGES_FILE"
   echo "" >> "$CHANGES_FILE"
   
   # Clean up all .bak files to avoid committing them

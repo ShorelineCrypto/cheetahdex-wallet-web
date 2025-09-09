@@ -3,7 +3,7 @@ run-name: Building mobile apps 📱
 
 on:
   pull_request:
-    branches: [dev, main, release/*, hotfix/*, feature/*]
+    branches: [cheetah, cheetahdex, release/*, hotfix/*, feature/*]
   workflow_dispatch:
   release:
     types: [created]
@@ -21,16 +21,18 @@ jobs:
             runner: macos-latest
             build_command: flutter build ios --no-pub --release --no-codesign
             artifact_path: build/ios/iphoneos/Runner.app
-            artifact_name: komodo-wallet-ios-unsigned.app
+            artifact_name: cheetahdex-wallet-ios-unsigned.app
           - platform: Android
             runner: ubuntu-latest
             build_command: flutter build apk --no-pub --release
             artifact_path: build/app/outputs/flutter-apk/app-release.apk
-            artifact_name: komodo-wallet-android-unsigned.apk
+            artifact_name: cheetahdex-wallet-android-unsigned.apk
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: cheetah
 
       - name: Install Flutter and dependencies
         uses: ./.github/actions/flutter-deps
