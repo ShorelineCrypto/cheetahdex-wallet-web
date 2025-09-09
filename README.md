@@ -1,4 +1,4 @@
-# Cheetahdex Web Wallet & DEX
+# Cheetahdex Wallet on Web/Mobile/Desktop
 
 <p align="center">
     <a href="https://github.com/ShorelineCrypto/cheetahdex-wallet-web" alt="Cheetahdex Web Wallet">
@@ -6,20 +6,24 @@
     </a>
 </p>
 
-Cheetahdex Web Wallet is open-sourced non-custodian wallet with 100% account seed compatibility with Komodo Web Wallet.  Not your keys, not your coins!
+Cheetahdex Wallet is open-sourced non-custodian wallet & DEX with 100% account seed compatibility with Komodo Wallet. This is unified code base for all platforms (Web/Mobile/Desktop). 
 
-Welcome to the Cheetahdex Web Wallet open-source repository! This cutting-edge project is brought to you by ShorelineCrypto, providing a mighty non-custodial wallet and decentralised exchange all on web app. Take control of your cryptocurrencies and trade seamlessly in DEX on your self-hosted web app or on ShorelineCrypto web app.
+Welcome to the Cheetahdex Wallet open-source repository! This cutting-edge project is brought to you by ShorelineCrypto, providing a mighty decentralised wallet and exchange all in one. Take control of your cryptocurrencies and trade seamlessly in DEX with personal sovereignty. Not your keys, not your coins!
 
-
-### Runs on: 
+### Web App 
 - ShorelineCrypto Live Web App:  https://app.shorelinecrypto.com
-- Self-hosted at your home linux server/cloud: follow INSTALL.md and below Developer guide to run your own cheetahdex web wallet app at your home or at cloud VPS
-- * Note:
-for other Cheetahdex wallet products on desktop (linux/macOS/windows) or on mobile, please checkout Cheetahdex page at:
+- Self-hosted at your home linux server/cloud: follow `INSTALL.md` and below Komodo Developer guide to run your own cheetahdex web wallet app at your home or at cloud VPS
+
+### Android App
+- Download/Install apk file from our [releases](https://github.com/ShorelineCrypto/cheetahdex-wallet-web/releases) into any android device. 
+- Self-built your own apk file by following `INSTALL.md` guide.
+
+Notes - for latest links and information on Cheetahdex wallet products on web, on desktop (linux/macOS/windows) or on mobile, please checkout Cheetahdex page at:
 https://cheetahdex.shorelinecrypto.com/
+
 ----
 
-### Support on Cheetahdex Web Wallet
+### Support on Cheetahdex Wallet
 
 Please join below discord server for support, discussions and general UI/UX
 feedback.
