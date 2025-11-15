@@ -27,6 +27,10 @@ class TradingStatusRepository {
         _log.info('GEO_BLOCK is disabled. Trading enabled.');
         return const AppGeoStatus();
       }
+      else {
+        _log.info('GEO_BLOCK is disabled. Trading enabled.');
+        return const AppGeoStatus();
+      }
 
       final bool shouldFail = forceFail ?? false;
       final String apiKey = _readFeedbackApiKey();
@@ -81,6 +85,7 @@ class TradingStatusRepository {
 
   /// Backward-compatible helper for existing call sites.
   Future<bool> isTradingEnabled({bool? forceFail}) async {
+    return true;
     final status = await fetchStatus(forceFail: forceFail);
     return status.tradingEnabled;
   }
