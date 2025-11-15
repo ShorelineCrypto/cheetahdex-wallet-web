@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart' show Bloc, Emitter;
 import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
+import 'package:komodo_defi_types/komodo_defi_types.dart' show CoinSubClass;
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:logging/logging.dart';
 import 'package:web_dex/analytics/events/portfolio_events.dart';
+import 'package:web_dex/analytics/events/misc_events.dart';
 import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
 import 'package:web_dex/bloc/coins_manager/coins_manager_sort.dart';
@@ -14,7 +16,7 @@ import 'package:web_dex/blocs/trading_entities_bloc.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/coin_type.dart';
 import 'package:web_dex/model/coin_utils.dart';
-import 'package:web_dex/model/wallet.dart';
+import 'package:web_dex/shared/utils/extensions/kdf_user_extensions.dart';
 import 'package:web_dex/router/state/wallet_state.dart';
 import 'package:web_dex/views/wallet/coins_manager/coins_manager_helpers.dart';
 
@@ -56,14 +58,24 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
   final TradingEntitiesBloc _tradingEntitiesBloc;
   final _log = Logger('CoinsManagerBloc');
 
+  // Cache for expensive operations
+  Map<String, Coin>? _cachedKnownCoinsMap;
+  List<Coin>? _cachedWalletCoins;
+  bool? _cachedTestCoinsEnabled;
+
   Future<void> _onCoinsUpdate(
     CoinsManagerCoinsUpdate event,
     Emitter<CoinsManagerState> emit,
   ) async {
     final List<FilterFunction> filters = [];
 
-    final mergedCoinsList = mergeCoinLists(
-      await _getOriginalCoinList(_coinsRepo, event.action),
+    final mergedCoinsList = _mergeCoinLists(
+      await _getOriginalCoinList(
+        _coinsRepo,
+        event.action,
+        cachedKnownCoinsMap: _cachedKnownCoinsMap,
+        cachedWalletCoins: _cachedWalletCoins,
+      ),
       state.coins,
     ).toList();
 
@@ -109,19 +121,38 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
     CoinsManagerCoinsListReset event,
     Emitter<CoinsManagerState> emit,
   ) async {
+    _cachedWalletCoins = null;
+    _cachedTestCoinsEnabled = null;
+
     emit(
       state.copyWith(
         action: event.action,
-        coins: [],
+        coins: _cachedKnownCoinsMap?.values.toList() ?? [],
         selectedCoins: const [],
         searchPhrase: '',
         selectedCoinTypes: const [],
         isSwitching: false,
       ),
     );
+
+    // Cache expensive operations when opening the list, as these values
+    // should not change while the list is open.
+    // Known coins map can be cached for longer, but would need to add an
+    // auth listener to clear it on logout/login, so leaving as-is for now.
+    // Wallet and test coins can be changed by the user outside of this
+    // bloc within the same auth session, so they must always be cleared.
+    _cachedKnownCoinsMap = _coinsRepo.getKnownCoinsMap(
+      excludeExcludedAssets: true,
+    );
+    _cachedWalletCoins = await _coinsRepo.getWalletCoins();
+    _cachedTestCoinsEnabled =
+        (await _settingsRepository.loadSettings()).testCoinsEnabled;
+
     final List<Coin> coins = await _getOriginalCoinList(
       _coinsRepo,
       event.action,
+      cachedKnownCoinsMap: _cachedKnownCoinsMap,
+      cachedWalletCoins: _cachedWalletCoins,
     );
 
     // Add wallet coins to selected coins if in add mode so that they
@@ -211,7 +242,17 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
         (state.action == CoinsManagerAction.remove && wasSelected);
 
     if (shouldActivate) {
-      await _tryActivateCoin(coin);
+      try {
+        await _tryActivateCoin(coin);
+      } on ZhtlcActivationCancelled {
+        // Revert optimistic selection and show a friendly message
+        selectedCoins.remove(coin);
+        emit(state.copyWith(
+          selectedCoins: selectedCoins.toList(),
+          errorMessage: 'Activation canceled.',
+        ));
+        return;
+      }
     } else {
       await _tryDeactivateCoin(coin);
     }
@@ -225,10 +266,9 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
     }
     _analyticsBloc.logEvent(
       AssetDisabledEventData(
-        assetSymbol: coin.abbr,
-        assetNetwork: coin.protocolType,
-        walletType:
-            (await _sdk.auth.currentUser)?.wallet.config.type.name ?? '',
+        asset: coin.abbr,
+        network: coin.protocolType,
+        hdType: (await _sdk.auth.currentUser)?.type ?? '',
       ),
     );
   }
@@ -236,15 +276,18 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
   Future<void> _tryActivateCoin(Coin coin) async {
     try {
       await _coinsRepo.activateCoinsSync([coin]);
+    } on ZhtlcActivationCancelled {
+      // Rethrow so the caller can revert the optimistic toggle and show UI
+      rethrow;
     } catch (e, s) {
       _log.warning('Failed to activate coin ${coin.abbr}', e, s);
+      return;
     }
     _analyticsBloc.logEvent(
       AssetEnabledEventData(
-        assetSymbol: coin.abbr,
-        assetNetwork: coin.protocolType,
-        walletType:
-            (await _sdk.auth.currentUser)?.wallet.config.type.name ?? '',
+        asset: coin.abbr,
+        network: coin.protocolType,
+        hdType: (await _sdk.auth.currentUser)?.type ?? '',
       ),
     );
   }
@@ -272,6 +315,14 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
     Emitter<CoinsManagerState> emit,
   ) {
     emit(state.copyWith(searchPhrase: event.text));
+    final query = event.text.trim();
+    final matchedCoin = _coinsRepo.getCoin(query.toUpperCase());
+    _analyticsBloc.logEvent(
+      SearchbarInputEventData(
+        queryLength: query.length,
+        assetSymbol: matchedCoin?.abbr,
+      ),
+    );
     add(CoinsManagerCoinsUpdate(state.action));
   }
 
@@ -288,8 +339,9 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
   }
 
   Future<List<Coin>> _filterTestCoinsIfNeeded(List<Coin> coins) async {
-    final settings = await _settingsRepository.loadSettings();
-    return settings.testCoinsEnabled ? coins : removeTestCoins(coins);
+    _cachedTestCoinsEnabled ??=
+        (await _settingsRepository.loadSettings()).testCoinsEnabled;
+    return _cachedTestCoinsEnabled! ? coins : removeTestCoins(coins);
   }
 
   List<Coin> _filterByPhrase(List<Coin> coins) {
@@ -317,11 +369,27 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
       return selectedCoins;
     }
 
-    final walletCoins = await _coinsRepo.getWalletCoins();
+    _cachedWalletCoins ??= await _coinsRepo.getWalletCoins();
+    final walletCoins = _cachedWalletCoins!;
     final result = List<Coin>.from(selectedCoins);
     final selectedCoinIds = result.map((c) => c.id.id).toSet();
 
     for (final walletCoin in walletCoins) {
+      // Do not pre-select ZHTLC coins without saved configuration.
+      // This ensures toggles remain OFF if auto-activation was bypassed.
+      if (walletCoin.id.subClass == CoinSubClass.zhtlc) {
+        try {
+          final saved =
+              await _sdk.activationConfigService.getSavedZhtlc(walletCoin.id);
+          if (saved == null) {
+            continue;
+          }
+        } catch (_) {
+          // On any error, be conservative and keep toggle OFF
+          continue;
+        }
+      }
+
       if (!selectedCoinIds.contains(walletCoin.id.id)) {
         result.add(walletCoin);
       }
@@ -330,7 +398,7 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
     return result;
   }
 
-  Set<Coin> mergeCoinLists(List<Coin> originalList, List<Coin> newList) {
+  Set<Coin> _mergeCoinLists(List<Coin> originalList, List<Coin> newList) {
     final Map<String, Coin> coinMap = {};
 
     for (final Coin coin in originalList) {
@@ -491,16 +559,18 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
 
 Future<List<Coin>> _getOriginalCoinList(
   CoinsRepo coinsRepo,
-  CoinsManagerAction action,
-) async {
+  CoinsManagerAction action, {
+  Map<String, Coin>? cachedKnownCoinsMap,
+  List<Coin>? cachedWalletCoins,
+}) async {
   switch (action) {
     case CoinsManagerAction.add:
-      return coinsRepo
-          .getKnownCoinsMap(excludeExcludedAssets: true)
-          .values
-          .toList();
+      final knownCoinsMap =
+          cachedKnownCoinsMap ??
+          coinsRepo.getKnownCoinsMap(excludeExcludedAssets: true);
+      return knownCoinsMap.values.toList();
     case CoinsManagerAction.remove:
-      return coinsRepo.getWalletCoins();
+      return cachedWalletCoins ?? await coinsRepo.getWalletCoins();
     case CoinsManagerAction.none:
       return [];
   }

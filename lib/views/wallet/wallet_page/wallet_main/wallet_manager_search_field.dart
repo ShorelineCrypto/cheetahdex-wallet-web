@@ -36,7 +36,7 @@ class _WalletManagerSearchFieldState extends State<WalletManagerSearchField> {
       controller: _searchController,
       focusNode: _focusNode,
       autocorrect: false,
-      textInputAction: TextInputAction.none,
+      textInputAction: TextInputAction.search,
       enableInteractiveSelection: true,
       inputFormatters: [LengthLimitingTextInputFormatter(40)],
       decoration: InputDecoration(

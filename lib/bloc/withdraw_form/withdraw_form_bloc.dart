@@ -5,8 +5,13 @@ import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:web_dex/bloc/withdraw_form/withdraw_form_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
+import 'package:web_dex/mm2/mm2_api/mm2_api.dart';
+import 'package:web_dex/mm2/mm2_api/rpc/send_raw_transaction/send_raw_transaction_request.dart';
 import 'package:web_dex/model/text_error.dart';
 import 'package:web_dex/model/wallet.dart';
+import 'package:web_dex/services/fd_monitor_service.dart';
+import 'package:web_dex/shared/utils/formatters.dart';
+import 'package:web_dex/shared/utils/platform_tuner.dart';
 import 'package:collection/collection.dart';
 
 export 'package:web_dex/bloc/withdraw_form/withdraw_form_event.dart';
@@ -18,12 +23,15 @@ import 'package:decimal/decimal.dart';
 class WithdrawFormBloc extends Bloc<WithdrawFormEvent, WithdrawFormState> {
   final KomodoDefiSdk _sdk;
   final WalletType? _walletType;
+  final Mm2Api _mm2Api;
 
   WithdrawFormBloc({
     required Asset asset,
     required KomodoDefiSdk sdk,
+    required Mm2Api mm2Api,
     WalletType? walletType,
   }) : _sdk = sdk,
+       _mm2Api = mm2Api,
        _walletType = walletType,
        super(
          WithdrawFormState(
@@ -57,19 +65,30 @@ class WithdrawFormBloc extends Bloc<WithdrawFormEvent, WithdrawFormState> {
     Emitter<WithdrawFormState> emit,
   ) async {
     try {
-      final pubkeys = await state.asset.getPubkeys(_sdk);
-      if (pubkeys.keys.isNotEmpty) {
+      final cached = _sdk.pubkeys.lastKnown(state.asset.id);
+      final pubkeys = cached ?? await state.asset.getPubkeys(_sdk);
+      final fundedKeys = pubkeys.keys
+          .where((key) => key.balance.spendable > Decimal.zero)
+          .toList();
+
+      if (fundedKeys.isNotEmpty) {
+        final filteredPubkeys = AssetPubkeys(
+          assetId: pubkeys.assetId,
+          keys: fundedKeys,
+          availableAddressesCount: pubkeys.availableAddressesCount,
+          syncStatus: pubkeys.syncStatus,
+        );
+
         final current = state.selectedSourceAddress;
         final newSelection = current != null
-            ? pubkeys.keys.firstWhereOrNull(
+            ? fundedKeys.firstWhereOrNull(
                     (key) => key.address == current.address,
                   ) ??
-                  pubkeys.keys.first
-            : (pubkeys.keys.length == 1 ? pubkeys.keys.first : null);
-
+                  fundedKeys.first
+            : (fundedKeys.length == 1 ? fundedKeys.first : null);
         emit(
           state.copyWith(
-            pubkeys: () => pubkeys,
+            pubkeys: () => filteredPubkeys,
             networkError: () => null,
             selectedSourceAddress: () => newSelection,
           ),
@@ -78,7 +97,7 @@ class WithdrawFormBloc extends Bloc<WithdrawFormEvent, WithdrawFormState> {
         emit(
           state.copyWith(
             networkError: () => TextError(
-              error: 'No addresses found for ${state.asset.id.name}',
+              error: 'No funded addresses found for ${state.asset.id.name}',
             ),
           ),
         );
@@ -209,7 +228,9 @@ class WithdrawFormBloc extends Bloc<WithdrawFormEvent, WithdrawFormState> {
     if (state.isMaxAmount) return;
 
     try {
-      final amount = Decimal.parse(event.amount);
+      // Normalize the amount string to handle locale-specific formats
+      final normalizedAmount = normalizeDecimalString(event.amount);
+      final amount = Decimal.parse(normalizedAmount);
       // Use the selected address balance if available
       final balance = state.selectedSourceAddress?.balance.spendable;
 
@@ -422,6 +443,17 @@ class WithdrawFormBloc extends Bloc<WithdrawFormEvent, WithdrawFormState> {
         ),
       );
     } catch (e) {
+      // Capture FD snapshot when KDF withdrawal preview fails
+      if (PlatformTuner.isIOS) {
+        try {
+          await FdMonitorService().logDetailedStatus();
+          final stats = await FdMonitorService().getCurrentCount();
+          print('FD stats at withdrawal preview failure for ${state.asset.id.id}: $stats');
+        } catch (fdError) {
+          print('Failed to capture FD stats: $fdError');
+        }
+      }
+      
       emit(
         state.copyWith(
           previewError: () =>
@@ -444,35 +476,60 @@ class WithdrawFormBloc extends Bloc<WithdrawFormEvent, WithdrawFormState> {
         state.copyWith(
           isSending: true,
           transactionError: () => null,
+          // No second device interaction is needed on confirm
           isAwaitingTrezorConfirmation: false,
         ),
       );
-
-      // Show Trezor progress message for hardware wallets
-      if (_walletType == WalletType.trezor) {
-        emit(state.copyWith(isAwaitingTrezorConfirmation: true));
+      final preview = state.preview;
+      if (preview == null) {
+        throw Exception('Missing withdrawal preview');
       }
 
-      await for (final progress in _sdk.withdrawals.withdraw(
-        state.toWithdrawParameters(),
-      )) {
-        if (progress.status == WithdrawalStatus.complete) {
-          emit(
-            state.copyWith(
-              step: WithdrawFormStep.success,
-              result: () => progress.withdrawalResult,
-              isSending: false,
-              isAwaitingTrezorConfirmation: false,
-            ),
-          );
-          return;
-        }
+      final response = await _mm2Api.sendRawTransaction(
+        SendRawTransactionRequest(
+          coin: preview.coin,
+          txHex: preview.txHex,
+        ),
+      );
 
-        if (progress.status == WithdrawalStatus.error) {
-          throw Exception(progress.errorMessage);
-        }
+      if (response.txHash == null) {
+        throw Exception(response.error?.message ?? 'Broadcast failed');
       }
+
+      final result = WithdrawalResult(
+        txHash: response.txHash!,
+        balanceChanges: preview.balanceChanges,
+        coin: preview.coin,
+        toAddress: preview.to.first,
+        fee: preview.fee,
+        kmdRewardsEligible:
+            preview.kmdRewards != null &&
+            Decimal.parse(preview.kmdRewards!.amount) > Decimal.zero,
+      );
+
+      emit(
+        state.copyWith(
+          step: WithdrawFormStep.success,
+          result: () => result,
+          // Clear cached preview after successful broadcast
+          preview: () => null,
+          isSending: false,
+          isAwaitingTrezorConfirmation: false,
+        ),
+      );
+      return;
     } catch (e) {
+      // Capture FD snapshot when KDF withdrawal submission fails
+      if (PlatformTuner.isIOS) {
+        try {
+          await FdMonitorService().logDetailedStatus();
+          final stats = await FdMonitorService().getCurrentCount();
+          print('FD stats at withdrawal submission failure for ${state.asset.id.id}: $stats');
+        } catch (fdError) {
+          print('Failed to capture FD stats: $fdError');
+        }
+      }
+      
       emit(
         state.copyWith(
           transactionError: () => TextError(error: 'Transaction failed: $e'),

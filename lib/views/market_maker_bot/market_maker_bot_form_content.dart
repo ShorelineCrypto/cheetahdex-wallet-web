@@ -3,7 +3,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:web_dex/analytics/events/market_bot_events.dart';
 import 'package:web_dex/app_config/app_config.dart';
+import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
 import 'package:web_dex/bloc/market_maker_bot/market_maker_trade_form/market_maker_trade_form_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
@@ -47,11 +49,11 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
       final formBloc = context.read<MarketMakerTradeFormBloc>();
       if (formBloc.state.sellCoin.value == null) {
         _setSellCoinToDefaultCoin();
-      } else {
-        formBloc.add(
-          MarketMakerTradeFormSellCoinChanged(formBloc.state.sellCoin.value),
-        );
       }
+      // Removed re-dispatch of MarketMakerTradeFormSellCoinChanged event
+      // as it causes flickering when coins list updates during coin selection.
+      // The event is already dispatched by _onSelectSellCoin when user
+      // selects a coin, so re-dispatching here creates a race condition.
     }
     super.didUpdateWidget(oldWidget);
   }
@@ -80,6 +82,7 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
                       maximumTradeVolume: state.maximumTradeVolume,
                       onItemSelected: _onSelectSellCoin,
                       onTradeVolumeChanged: _onVolumeRangeChanged,
+                      showSellAmountSpinner: state.isLoadingMaxMakerVolume,
                     ),
                     bottomWidget: BuyCoinSelectDropdown(
                       key: const Key('$keyPrefix-buy-select'),
@@ -100,8 +103,9 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
                         ),
                         initialValue: state.tradeMargin.value,
                         onChanged: _onTradeMarginChanged,
-                        errorText: state.tradeMargin.displayError
-                            ?.text(maxValue: 1000),
+                        errorText: state.tradeMargin.displayError?.text(
+                          maxValue: 1000,
+                        ),
                         maxIntegerDigits: 4,
                         maxFractionDigits: 5,
                       ),
@@ -127,9 +131,10 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
                   const SizedBox(height: 12),
                   if (state.tradePreImageError != null)
                     ImportantNote(
-                      text: state.tradePreImageError?.text(
+                      text: state.tradePreImageError?.textWithMin(
                             state.sellCoin.value,
                             state.buyCoin.value,
+                            state.minTradingVolume?.toString(),
                           ) ??
                           '',
                     ),
@@ -154,6 +159,8 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
                           child: AddMarketMakerBotTradeButton(
                             enabled: state.isValid,
                             onPressed: _onMakeOrderPressed,
+                            sellCoin: state.sellCoin.value,
+                            buyCoin: state.buyCoin.value,
                           ),
                         ),
                       ),
@@ -175,9 +182,21 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
   }
 
   void _onMakeOrderPressed() {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(const MarketMakerConfirmationPreviewRequested());
+    final tradeForm = context.read<MarketMakerTradeFormBloc>().state;
+    final pairsCount =
+        tradeForm.sellCoin.value != null && tradeForm.buyCoin.value != null
+        ? 1
+        : 0;
+    context.read<AnalyticsBloc>().logEvent(
+      MarketbotSetupStartedEventData(
+        strategyType: 'simple',
+        pairsCount: pairsCount,
+      ),
+    );
+
+    context.read<MarketMakerTradeFormBloc>().add(
+      const MarketMakerConfirmationPreviewRequested(),
+    );
   }
 
   void _setSellCoinToDefaultCoin() {
@@ -194,50 +213,50 @@ class _MarketMakerBotFormContentState extends State<MarketMakerBotFormContent> {
   }
 
   void _onTradeMarginChanged(String value) {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(MarketMakerTradeFormTradeMarginChanged(value));
+    context.read<MarketMakerTradeFormBloc>().add(
+      MarketMakerTradeFormTradeMarginChanged(value),
+    );
   }
 
   void _onUpdateIntervalChanged(TradeBotUpdateInterval? value) {
     context.read<MarketMakerTradeFormBloc>().add(
-          MarketMakerTradeFormUpdateIntervalChanged(
-            value?.seconds.toString() ?? '',
-          ),
-        );
+      MarketMakerTradeFormUpdateIntervalChanged(
+        value?.seconds.toString() ?? '',
+      ),
+    );
   }
 
   void _onClearFormPressed() {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(const MarketMakerTradeFormClearRequested());
+    context.read<MarketMakerTradeFormBloc>().add(
+      const MarketMakerTradeFormClearRequested(),
+    );
   }
 
   void _onBuyCoinSelected(Coin? value) {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(MarketMakerTradeFormBuyCoinChanged(value));
+    context.read<MarketMakerTradeFormBloc>().add(
+      MarketMakerTradeFormBuyCoinChanged(value),
+    );
   }
 
   Future<bool> _swapBuyAndSellCoins() async {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(const MarketMakerTradeFormSwapCoinsRequested());
+    context.read<MarketMakerTradeFormBloc>().add(
+      const MarketMakerTradeFormSwapCoinsRequested(),
+    );
     return true;
   }
 
   void _onSelectSellCoin(Coin? value) {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(MarketMakerTradeFormSellCoinChanged(value));
+    context.read<MarketMakerTradeFormBloc>().add(
+      MarketMakerTradeFormSellCoinChanged(value),
+    );
   }
 
   void _onVolumeRangeChanged(RangeValues values) {
     context.read<MarketMakerTradeFormBloc>().add(
-          MarketMakerTradeFormTradeVolumeChanged(
-            minimumTradeVolume: values.start,
-            maximumTradeVolume: values.end,
-          ),
-        );
+      MarketMakerTradeFormTradeVolumeChanged(
+        minimumTradeVolume: values.start,
+        maximumTradeVolume: values.end,
+      ),
+    );
   }
 }

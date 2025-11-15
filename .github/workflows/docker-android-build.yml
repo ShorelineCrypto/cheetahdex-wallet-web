@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -44,6 +46,27 @@ jobs:
       - name: Build Android image
         env:
           GITHUB_API_PUBLIC_READONLY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional feedback provider secrets to embed dart-defines
+          TRELLO_API_KEY: ${{ secrets.TRELLO_API_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          TRELLO_BOARD_ID: ${{ secrets.TRELLO_BOARD_ID }}
+          TRELLO_LIST_ID: ${{ secrets.TRELLO_LIST_ID }}
+          FEEDBACK_API_KEY: ${{ secrets.FEEDBACK_API_KEY }}
+          FEEDBACK_PRODUCTION_URL: ${{ secrets.FEEDBACK_PRODUCTION_URL }}
+          MATOMO_URL: ${{ secrets.MATOMO_URL }}
+          MATOMO_SITE_ID: ${{ secrets.MATOMO_SITE_ID }}
         run: |
           chmod +x .docker/build.sh
           sh .docker/build.sh apk release
+
+      - name: Compute short commit SHA
+        id: vars
+        shell: bash
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+  
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: komodo-wallet-android-docker-${{ steps.vars.outputs.short_sha }}.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 5

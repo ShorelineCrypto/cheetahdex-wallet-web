@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +11,8 @@ import 'package:web_dex/bloc/withdraw_form/withdraw_form_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
 import 'package:web_dex/model/nft.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:komodo_ui/komodo_ui.dart';
 
 class NftWithdrawForm extends StatelessWidget {
   const NftWithdrawForm({
@@ -137,6 +141,24 @@ class __AddressFieldState extends State<_AddressField> {
       focusedBorder: errorBorder,
       validator: (_) => error is MixedCaseAddressError ? null : error?.message,
       errorMaxLines: 2,
+      suffixIcon: (!kIsWeb && (Platform.isAndroid || Platform.isIOS))
+          ? IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: () async {
+                final scanned = await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const QrCodeReaderOverlay(),
+                  ),
+                );
+
+                if (!mounted) return;
+                context
+                    .read<NftWithdrawBloc>()
+                    .add(NftWithdrawAddressChanged(scanned ?? ''));
+              },
+            )
+          : null,
     );
   }
 }

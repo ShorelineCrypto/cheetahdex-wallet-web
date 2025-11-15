@@ -149,7 +149,9 @@ class _Dropdown extends StatelessWidget {
                 .firstWhereOrNull((coin) => coin.type == type) !=
             null;
       case WalletType.trezor:
-        return coinsBloc.state.coins.values
+        // In Trezor mode, hide filter options that have no coins in the
+        // currently visible list (after search/test-coin filters).
+        return bloc.state.coins
                 .firstWhereOrNull((coin) => coin.type == type) !=
             null;
       case WalletType.metamask:

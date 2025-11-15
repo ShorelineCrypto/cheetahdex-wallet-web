@@ -12,12 +12,13 @@ If the above fails due to the offline environment, add the `--offline` flag.
 
 ## Static Analysis and Formatting
 
-Run analysis and formatting before committing code:
+Run analysis and formatting (only on changed files) before committing code:
 
 ```bash
 flutter analyze
 
-dart format .
+dart format [files]
+
 ```
 
 ## Running Tests
@@ -48,6 +49,6 @@ The KDF API documentation can be found in the root folder at `/KDF_API_DOCUMENTA
 
 ## PR Guidance
 
-Commit messages should be clear and descriptive. When opening a pull request, summarize the purpose of the change and reference related issues when appropriate. Ensure commit messages follow the Conventional Commits standard as described in the standards section below.
+Commit messages should be clear and descriptive. When opening a pull request, summarize the purpose of the change and reference related issues when appropriate. Ensure commit messages and PR title follow the Conventional Commits standard as described in the standards section below.
 
 <!-- The following sections are automatically generated during environment setup -->

@@ -22,20 +22,23 @@ Finally, check dependency with below command:
 
 ShorelineCrypto production web/android app was compiled successfully under below dependency versions in Ubuntu 22.04:
 ```
- [!] Flutter (Channel [user-branch], 3.32.7, on Ubuntu 22.04.5 LTS 6.8.0-79-generic, locale en_US.UTF-8) [137ms]
-    ! Flutter version 3.32.7 on channel [user-branch] at /home/hlu/flutter
+ [!] Flutter (Channel [user-branch], 3.35.3, on Ubuntu 22.04.5 LTS 6.8.0-87-generic, locale en_US.UTF-8) [55ms]
+    ! Flutter version 3.35.3 on channel [user-branch] at /home/hlu/flutter
       Currently on an unknown channel. Run `flutter channel` to switch to an official channel.
       If that doesn't fix the issue, reinstall Flutter by following instructions at https://flutter.dev/setup.
     ! Upstream repository unknown source is not a standard remote.
       Set environment variable "FLUTTER_GIT_URL" to unknown source to dismiss this error.
-    • Framework revision d7b523b356 (8 weeks ago), 2025-07-15 17:03:46 -0700
-    • Engine revision 39d6d6e699
-    • Dart version 3.8.1
-    • DevTools version 2.45.1
+    • Framework revision a402d9a437 (2 months ago), 2025-09-03 14:54:31 -0700
+    • Engine revision ddf47dd3ff
+    • Dart version 3.9.2
+    • DevTools version 2.48.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets,
+      enable-lldb-debugging
     • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
 
-[✓] Android toolchain - develop for Android devices (Android SDK version 35.0.0) [1,813ms]
+[✓] Android toolchain - develop for Android devices (Android SDK version 35.0.0) [3.1s]
     • Android SDK at /home/hlu/Android/Sdk
+    • Emulator version 36.1.9.0 (build_id 13823996) (CL:N/A)
     • Platform android-35, build-tools 35.0.0
     • ANDROID_HOME = /home/hlu/android-studio
     • Java binary at: /home/hlu/android-studio/jbr/bin/java
@@ -44,10 +47,10 @@ ShorelineCrypto production web/android app was compiled successfully under below
     • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
     • All Android licenses accepted.
 
-[✓] Chrome - develop for the web [28ms]
+[✓] Chrome - develop for the web [19ms]
     • Chrome at google-chrome
 
-[✓] Linux toolchain - develop for Linux desktop [220ms]
+[✓] Linux toolchain - develop for Linux desktop [314ms]
     • Ubuntu clang version 14.0.0-1ubuntu1.1
     • cmake version 3.22.1
     • ninja version 1.10.1
@@ -55,7 +58,7 @@ ShorelineCrypto production web/android app was compiled successfully under below
     • GL_EXT_framebuffer_blit: no
     • GL_EXT_texture_format_BGRA8888: no
 
-[✓] Android Studio (version 2024.3) [25ms]
+[✓] Android Studio (version 2024.3) [14ms]
     • Android Studio at /home/hlu/android-studio
     • Flutter plugin can be installed from:
       🔨 https://plugins.jetbrains.com/plugin/9212-flutter
@@ -63,11 +66,11 @@ ShorelineCrypto production web/android app was compiled successfully under below
       🔨 https://plugins.jetbrains.com/plugin/6351-dart
     • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
 
-[✓] Connected device (2 available) [160ms]
-    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-79-generic
-    • Chrome (web)    • chrome • web-javascript • Google Chrome 139.0.7258.154
+[✓] Connected device (2 available) [228ms]
+    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-87-generic
+    • Chrome (web)    • chrome • web-javascript • Google Chrome 142.0.7444.162
 
-[✓] Network resources [549ms]
+[✓] Network resources [608ms]
     • All expected network resources are available.
 
 ! Doctor found issues in 1 category.
@@ -82,6 +85,7 @@ To compile your self-hosted web app, run below
 ```
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
   cd cheetahdex-wallet-web && git checkout cheetahdex
+  git submodule update --init --recursive
   flutter build web --csp --no-web-resources-cdn
 ```
 

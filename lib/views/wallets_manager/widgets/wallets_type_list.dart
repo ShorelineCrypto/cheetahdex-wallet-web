@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:web_dex/model/wallet.dart';
+import 'package:web_dex/shared/utils/platform_tuner.dart';
 import 'package:web_dex/views/wallets_manager/widgets/wallet_type_list_item.dart';
 
 class WalletsTypeList extends StatelessWidget {
@@ -12,6 +13,10 @@ class WalletsTypeList extends StatelessWidget {
     return Column(
       children: WalletType.values
           .where((type) => type != WalletType.hdwallet)
+          // Hide hardware wallet on native mobile apps
+          .where(
+              (type) => !(PlatformTuner.isNativeMobile && type == WalletType.trezor),
+          )
           .map((type) => Padding(
                 padding: const EdgeInsets.only(bottom: 12.0),
                 child: WalletTypeListItem(
