@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
-import 'package:feedback/feedback.dart';
-import 'package:flutter/foundation.dart' show kIsWasm, kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWasm, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -22,17 +21,23 @@ import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
 import 'package:web_dex/bloc/cex_market_data/cex_market_data.dart';
 import 'package:web_dex/bloc/cex_market_data/mockup/performance_mode.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
+import 'package:komodo_defi_framework/komodo_defi_framework.dart';
 import 'package:web_dex/bloc/settings/settings_repository.dart';
+import 'package:web_dex/bloc/trading_status/trading_status_repository.dart';
+import 'package:web_dex/bloc/trading_status/trading_status_service.dart';
 import 'package:web_dex/blocs/wallets_repository.dart';
 import 'package:web_dex/mm2/mm2.dart';
 import 'package:web_dex/mm2/mm2_api/mm2_api.dart';
 import 'package:web_dex/model/stored_settings.dart';
 import 'package:web_dex/performance_analytics/performance_analytics.dart';
 import 'package:web_dex/sdk/widgets/window_close_handler.dart';
-import 'package:web_dex/services/feedback/custom_feedback_form.dart';
+import 'package:web_dex/services/arrr_activation/arrr_activation_service.dart';
+import 'package:web_dex/services/fd_monitor_service.dart';
+import 'package:web_dex/services/feedback/app_feedback_wrapper.dart';
 import 'package:web_dex/services/logger/get_logger.dart';
 import 'package:web_dex/services/storage/get_storage.dart';
 import 'package:web_dex/shared/constants.dart';
+import 'package:web_dex/shared/screenshot/screenshot_sensitivity.dart';
 import 'package:web_dex/shared/utils/platform_tuner.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 
@@ -44,52 +49,90 @@ PerformanceMode? get appDemoPerformanceMode =>
     _appDemoPerformanceMode ?? _getPerformanceModeFromUrl();
 
 Future<void> main() async {
-  await runZonedGuarded(
-    () async {
-      usePathUrlStrategy();
-      WidgetsFlutterBinding.ensureInitialized();
-      Bloc.observer = AppBlocObserver();
-      PerformanceAnalytics.init();
+  await runZonedGuarded(() async {
+    usePathUrlStrategy();
+    WidgetsFlutterBinding.ensureInitialized();
+    Bloc.observer = AppBlocObserver();
+    PerformanceAnalytics.init();
 
-      FlutterError.onError = (FlutterErrorDetails details) {
-        catchUnhandledExceptions(details.exception, details.stack);
-      };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      catchUnhandledExceptions(details.exception, details.stack);
+    };
 
-      // Foundational dependencies / setup - everything else builds on these 3.
-      // The current focus is migrating mm2Api to the new sdk, so that the sdk
-      // is the only/primary API/repository for KDF
-      final KomodoDefiSdk komodoDefiSdk = await mm2.initialize();
-      final mm2Api = Mm2Api(mm2: mm2, sdk: komodoDefiSdk);
-      await AppBootstrapper.instance.ensureInitialized(komodoDefiSdk, mm2Api);
+    // Foundational dependencies / setup - everything else builds on these 3.
+    // The current focus is migrating mm2Api to the new sdk, so that the sdk
+    // is the only/primary API/repository for KDF
+    final KomodoDefiSdk komodoDefiSdk = await mm2.initialize();
 
-      final coinsRepo = CoinsRepo(kdfSdk: komodoDefiSdk, mm2: mm2);
-      final walletsRepository = WalletsRepository(
-        komodoDefiSdk,
-        mm2Api,
-        getStorage(),
-      );
+    // Note: SDK debug logging is now controlled by the diagnostic logging toggle
+    // in Settings. The flags are initialized in SettingsBloc from stored settings.
 
-      runApp(
-        EasyLocalization(
-          supportedLocales: localeList,
-          fallbackLocale: localeList.first,
-          useFallbackTranslations: true,
-          useOnlyLangCode: true,
-          path: '$assetsPath/translations',
-          child: MultiRepositoryProvider(
-            providers: [
-              RepositoryProvider(create: (_) => komodoDefiSdk),
-              RepositoryProvider(create: (_) => mm2Api),
-              RepositoryProvider(create: (_) => coinsRepo),
-              RepositoryProvider(create: (_) => walletsRepository),
-            ],
-            child: const MyApp(),
-          ),
+    final mm2Api = Mm2Api(mm2: mm2, sdk: komodoDefiSdk);
+    // Sparkline is dependent on Hive initialization, so we pass it on to the
+    // bootstrapper here
+    final sparklineRepository = SparklineRepository.defaultInstance();
+    await AppBootstrapper.instance.ensureInitialized(
+      komodoDefiSdk,
+      mm2Api,
+      sparklineRepository,
+    );
+
+    final tradingStatusRepository = TradingStatusRepository(komodoDefiSdk);
+    final tradingStatusService = TradingStatusService(tradingStatusRepository);
+    await tradingStatusService.initialize();
+    final arrrActivationService = ArrrActivationService(komodoDefiSdk, mm2);
+
+    final coinsRepo = CoinsRepo(
+      kdfSdk: komodoDefiSdk,
+      mm2: mm2,
+      tradingStatusService: tradingStatusService,
+      arrrActivationService: arrrActivationService,
+    );
+    final walletsRepository = WalletsRepository(
+      komodoDefiSdk,
+      mm2Api,
+      getStorage(),
+    );
+
+    // Start FD monitoring on iOS (works in both Debug and Release)
+    if (PlatformTuner.isIOS) {
+      try {
+        final result = await FdMonitorService().start(intervalSeconds: 60.0);
+        if (result['success'] == true) {
+          log(
+            'FD Monitor started successfully in ${kDebugMode ? "DEBUG" : "RELEASE"} mode',
+          );
+        } else {
+          log('FD Monitor failed to start: ${result['message']}');
+        }
+      } catch (e) {
+        log('Failed to start FD Monitor: $e');
+      }
+    }
+
+    runApp(
+      EasyLocalization(
+        supportedLocales: localeList,
+        fallbackLocale: localeList.first,
+        useFallbackTranslations: true,
+        useOnlyLangCode: true,
+        path: '$assetsPath/translations',
+        child: MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider.value(value: komodoDefiSdk),
+            RepositoryProvider.value(value: mm2Api),
+            RepositoryProvider.value(value: arrrActivationService),
+            RepositoryProvider.value(value: coinsRepo),
+            RepositoryProvider.value(value: walletsRepository),
+            RepositoryProvider.value(value: sparklineRepository),
+            RepositoryProvider.value(value: tradingStatusRepository),
+            RepositoryProvider.value(value: tradingStatusService),
+          ],
+          child: const MyApp(),
         ),
-      );
-    },
-    catchUnhandledExceptions,
-  );
+      ),
+    );
+  }, catchUnhandledExceptions);
 }
 
 void catchUnhandledExceptions(Object error, StackTrace? stack) {
@@ -137,50 +180,39 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final komodoDefiSdk = RepositoryProvider.of<KomodoDefiSdk>(context);
     final walletsRepository = RepositoryProvider.of<WalletsRepository>(context);
+    final tradingStatusService = RepositoryProvider.of<TradingStatusService>(
+      context,
+    );
 
-    final theme = Theme.of(context);
-
+    final sensitivityController = ScreenshotSensitivityController();
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(
           create: (_) {
             final bloc = AuthBloc(
-                komodoDefiSdk, walletsRepository, SettingsRepository());
+              komodoDefiSdk,
+              walletsRepository,
+              SettingsRepository(),
+              tradingStatusService,
+            );
             bloc.add(const AuthLifecycleCheckRequested());
             return bloc;
           },
         ),
       ],
-      child: BetterFeedback(
-        feedbackBuilder: CustomFeedbackForm.feedbackBuilder,
-        themeMode: ThemeMode.light,
-        darkTheme: _feedbackThemeData(theme),
-        theme: _feedbackThemeData(theme),
+      child: AppFeedbackWrapper(
         child: AnalyticsLifecycleHandler(
           child: WindowCloseHandler(
-            child: app_bloc_root.AppBlocRoot(
-              storedPrefs: _storedSettings!,
-              komodoDefiSdk: komodoDefiSdk,
+            child: ScreenshotSensitivity(
+              controller: sensitivityController,
+              child: app_bloc_root.AppBlocRoot(
+                storedPrefs: _storedSettings!,
+                komodoDefiSdk: komodoDefiSdk,
+              ),
             ),
           ),
         ),
       ),
     );
   }
-}
-
-FeedbackThemeData _feedbackThemeData(ThemeData appTheme) {
-  return FeedbackThemeData(
-    bottomSheetTextInputStyle: appTheme.textTheme.bodyMedium!,
-    bottomSheetDescriptionStyle: appTheme.textTheme.bodyMedium!,
-    dragHandleColor: appTheme.colorScheme.primary,
-    colorScheme: appTheme.colorScheme,
-    sheetIsDraggable: true,
-    feedbackSheetHeight: 0.3,
-    drawColors: [
-      Colors.red,
-      Colors.white,
-      Colors.green,
-    ],
-  );
 }

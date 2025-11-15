@@ -1,10 +1,14 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/bloc/dex_tab_bar/dex_tab_bar_bloc.dart';
 import 'package:web_dex/bloc/market_maker_bot/market_maker_bot/market_maker_bot_bloc.dart';
+import 'package:web_dex/bloc/market_maker_bot/market_maker_order_list/market_maker_order_list_bloc.dart';
 import 'package:web_dex/bloc/market_maker_bot/market_maker_order_list/trade_pair.dart';
 import 'package:web_dex/bloc/market_maker_bot/market_maker_trade_form/market_maker_trade_form_bloc.dart';
 import 'package:web_dex/common/screen.dart';
+import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/swap.dart';
 import 'package:web_dex/model/trading_entities_filter.dart';
 import 'package:web_dex/router/state/routing_state.dart';
@@ -13,6 +17,7 @@ import 'package:web_dex/views/dex/dex_list_filter/mobile/dex_list_filter_mobile.
 import 'package:web_dex/views/dex/dex_list_filter/mobile/dex_list_header_mobile.dart';
 import 'package:web_dex/views/dex/entities_list/history/history_list.dart';
 import 'package:web_dex/views/dex/entities_list/in_progress/in_progress_list.dart';
+import 'package:web_dex/views/market_maker_bot/animated_bot_status_indicator.dart';
 import 'package:web_dex/views/market_maker_bot/market_maker_bot_form.dart';
 import 'package:web_dex/views/market_maker_bot/market_maker_bot_order_list.dart';
 import 'package:web_dex/views/market_maker_bot/market_maker_bot_tab_type.dart';
@@ -76,20 +81,13 @@ class _MarketMakerBotTabContentWrapperState
 
   void _setFilter(TradingEntitiesFilter? filter) {
     context.read<DexTabBarBloc>().add(
-          FilterChanged(
-            tabType: widget.listType,
-            filter: filter,
-          ),
-        );
+      FilterChanged(tabType: widget.listType, filter: filter),
+    );
   }
 }
 
 class _SelectedTabContent extends StatelessWidget {
-  const _SelectedTabContent({
-    this.filter,
-    required this.type,
-    super.key,
-  });
+  const _SelectedTabContent({this.filter, required this.type, super.key});
 
   // TODO: get the current filter and type from BLoC state
   final TradingEntitiesFilter? filter;
@@ -104,10 +102,8 @@ class _SelectedTabContent extends StatelessWidget {
         return MarketMakerBotOrdersList(
           entitiesFilterData: filter,
           onEdit: (order) => _editTradingBotOrder(context, order),
-          onCancel: (order) => _deleteTradingBotOrders(
-            [order],
-            marketMakerBotBloc,
-          ),
+          onCancel: (order) =>
+              _deleteTradingBotOrders([order], marketMakerBotBloc),
           onCancelAll: (orders) {
             _deleteTradingBotOrders(orders, marketMakerBotBloc);
           },
@@ -141,9 +137,9 @@ class _SelectedTabContent extends StatelessWidget {
   }
 
   void _editTradingBotOrder(BuildContext context, TradePair order) {
-    context
-        .read<MarketMakerTradeFormBloc>()
-        .add(MarketMakerTradeFormEditOrderRequested(order));
+    context.read<MarketMakerTradeFormBloc>().add(
+      MarketMakerTradeFormEditOrderRequested(order),
+    );
     context.read<DexTabBarBloc>().add(const TabChanged(0));
   }
 
@@ -176,11 +172,7 @@ class _MobileWidget extends StatelessWidget {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Flexible(
-            child: child,
-          ),
-        ],
+        children: [Flexible(child: child)],
       );
     } else {
       return Column(
@@ -193,6 +185,12 @@ class _MobileWidget extends StatelessWidget {
             isFilterShown: isFilterShown,
             onFilterDataChange: onApplyFilter,
             onFilterPressed: onFilterTap,
+            centerWidget: type == MarketMakerBotTabType.orders
+                ? const _SimplifiedTradingBotControls()
+                : null,
+            onCancelAll: type == MarketMakerBotTabType.orders
+                ? () => _handleCancelAllOrders(context)
+                : null,
           ),
           const SizedBox(height: 6),
           Flexible(
@@ -207,6 +205,64 @@ class _MobileWidget extends StatelessWidget {
         ],
       );
     }
+  }
+
+  void _handleCancelAllOrders(BuildContext context) {
+    final orderListBloc = context.read<MarketMakerOrderListBloc>();
+    final marketMakerBotBloc = context.read<MarketMakerBotBloc>();
+    final orders = orderListBloc.state.makerBotOrders;
+
+    if (orders.isNotEmpty) {
+      final tradePairs = orders.map((e) => e.config).toList();
+      marketMakerBotBloc.add(MarketMakerBotOrderCancelRequested(tradePairs));
+    }
+  }
+}
+
+class _SimplifiedTradingBotControls extends StatelessWidget {
+  const _SimplifiedTradingBotControls({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<MarketMakerBotBloc, MarketMakerBotState>(
+      builder: (context, botState) {
+        return BlocBuilder<MarketMakerOrderListBloc, MarketMakerOrderListState>(
+          builder: (context, orderListState) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: AnimatedBotStatusIndicator(
+                    status: botState.status,
+                    widthThreshold: 100,
+                  ),
+                ),
+                const Spacer(),
+                UiPrimaryButton(
+                  text: botState.isRunning
+                      ? LocaleKeys.mmBotStop.tr()
+                      : LocaleKeys.mmBotStart.tr(),
+                  width: 100,
+                  height: 30,
+                  textStyle: const TextStyle(fontSize: 12),
+                  onPressed:
+                      botState.isUpdating ||
+                          orderListState.makerBotOrders.isEmpty
+                      ? null
+                      : botState.isRunning
+                      ? () => context.read<MarketMakerBotBloc>().add(
+                          const MarketMakerBotStopRequested(),
+                        )
+                      : () => context.read<MarketMakerBotBloc>().add(
+                          const MarketMakerBotStartRequested(),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 
@@ -229,9 +285,7 @@ class _DesktopWidget extends StatelessWidget {
       return Column(
         mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Flexible(child: child),
-        ],
+        children: [Flexible(child: child)],
       );
     } else {
       return Column(

@@ -214,9 +214,12 @@ class NftMainBloc extends Bloc<NftMainEvent, NftMainState> {
   ) {
     final Map<NftBlockchains, int> countMap = {};
 
+    // Only include chains that have NFTs (which means their parent coins are activated)
     for (final NftBlockchains chain in NftBlockchains.values) {
-      final count = nfts[chain]?.length ?? 0;
-      countMap[chain] = count;
+      if (nfts.containsKey(chain)) {
+        final count = nfts[chain]?.length ?? 0;
+        countMap[chain] = count;
+      }
     }
 
     final sorted = countMap.entries.toList()..sort((a, b) => b.value - a.value);

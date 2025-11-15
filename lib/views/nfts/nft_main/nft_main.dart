@@ -10,6 +10,7 @@ import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
 import 'package:web_dex/model/authorize_mode.dart';
 import 'package:web_dex/model/nft.dart';
 import 'package:web_dex/views/nfts/common/widgets/nft_connect_wallet.dart';
+import 'package:web_dex/views/nfts/common/widgets/nft_no_chains_enabled.dart';
 import 'package:web_dex/views/nfts/nft_list/nft_list.dart';
 import 'package:web_dex/views/nfts/nft_main/nft_main_controls.dart';
 import 'package:web_dex/views/nfts/nft_main/nft_main_failure.dart';
@@ -25,10 +26,11 @@ class NftMain extends StatelessWidget {
         (bloc) => bloc.state.mode == AuthorizeMode.logIn);
     final bool isInitial =
         context.select<NftMainBloc, bool>((bloc) => !bloc.state.isInitialized);
-
-    final bool hasLoaded = context.select<NftMainBloc, bool>(
+    final bool hasEnabledChains = context.select<NftMainBloc, bool>(
         (bloc) => bloc.state.sortedChains.isNotEmpty);
-    if (isLoggedIn && (isInitial || !hasLoaded)) {
+
+    // Only show loading screen if we're still initializing AND there are chains to load
+    if (isLoggedIn && isInitial && hasEnabledChains) {
       return const NftMainLoading();
     }
     final ColorSchemeExtension colorScheme =
@@ -37,6 +39,7 @@ class NftMain extends StatelessWidget {
     final List<NftBlockchains> tabs =
         context.select<NftMainBloc, List<NftBlockchains>>(
             (bloc) => bloc.state.sortedChains);
+    
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,20 +54,21 @@ class NftMain extends StatelessWidget {
               style: textTheme.bodyMBold.copyWith(color: colorScheme.secondary),
             ),
           ),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: colorScheme.surfContHighest,
+        if (hasEnabledChains)
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: colorScheme.surfContHighest,
+                ),
               ),
             ),
+            child: NftTabs(tabs: tabs),
           ),
-          child: NftTabs(tabs: tabs),
-        ),
         const SizedBox(height: 20),
-        const NftMainControls(),
-        const SizedBox(height: 20),
+        if (hasEnabledChains) const NftMainControls(),
+        if (hasEnabledChains) const SizedBox(height: 20),
         Flexible(
           child: Builder(builder: (context) {
             final mode = context
@@ -76,6 +80,17 @@ class NftMain extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       key: Key('msg-connect-wallet'),
                       children: [NftConnectWallet()],
+                    );
+            }
+
+            // Show placeholder if no NFT chains are enabled
+            if (!hasEnabledChains) {
+              return isMobile
+                  ? const Center(child: NftNoChainsEnabled())
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      key: Key('msg-no-chains-enabled'),
+                      children: [NftNoChainsEnabled()],
                     );
             }
 

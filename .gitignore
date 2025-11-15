@@ -1,6 +1,3 @@
-# Ignore the SDK symmlink (if it exists)
-/sdk/
-
 # Miscellaneous
 *.class
 *.log
@@ -11,6 +8,7 @@
 .buildlog/
 .history
 .svn/
+.kiro/
 
 # IntelliJ related
 *.iml
@@ -36,7 +34,7 @@
 .packages
 .pub-cache/
 .pub/
-/build/
+**/build/
 contrib/coins_config.json
 devtools_options.yaml
 
@@ -84,3 +82,8 @@ venv/
 .fvm/
 /macos/build
 AGENTS_1.md
+# .dmg Release
+dist/
+ 
+# KDF generated binaries
+web/kdf/kdf/bin/

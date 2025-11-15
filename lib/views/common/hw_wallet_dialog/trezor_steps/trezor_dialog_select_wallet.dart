@@ -1,31 +1,31 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:web_dex/shared/constants.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:web_dex/shared/screenshot/screenshot_sensitivity.dart';
+import 'package:web_dex/shared/widgets/password_visibility_control.dart';
 
 class TrezorDialogSelectWallet extends StatelessWidget {
-  const TrezorDialogSelectWallet({
-    Key? key,
-    required this.onComplete,
-  }) : super(key: key);
+  const TrezorDialogSelectWallet({Key? key, required this.onComplete})
+    : super(key: key);
 
   final Function(String) onComplete;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ScreenshotSensitive(child: Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           LocaleKeys.selectWalletType.tr(),
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 18),
-        _TrezorStandardWallet(
-          onTap: () => onComplete(''),
-        ),
+        _TrezorStandardWallet(onTap: () => onComplete('')),
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 6.0),
           child: UiDivider(),
@@ -34,7 +34,7 @@ class TrezorDialogSelectWallet extends StatelessWidget {
           onSubmit: (String passphrase) => onComplete(passphrase),
         ),
       ],
-    );
+    ));
   }
 }
 
@@ -66,11 +66,19 @@ class _TrezorHiddenWalletState extends State<_TrezorHiddenWallet> {
   final TextEditingController _passphraseController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final FocusNode _passphraseFieldFocusNode = FocusNode();
+  bool _isObscured = true;
 
   @override
   void initState() {
     _passphraseController.addListener(() => setState(() {}));
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _passphraseController.dispose();
+    _passphraseFieldFocusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -87,7 +95,7 @@ class _TrezorHiddenWalletState extends State<_TrezorHiddenWallet> {
         const SizedBox(height: 12),
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 30),
-          child: _buildObscuredPassphrase(),
+          child: AutofillGroup(child: _buildObscuredPassphrase()),
         ),
       ],
     );
@@ -100,9 +108,19 @@ class _TrezorHiddenWalletState extends State<_TrezorHiddenWallet> {
         controller: _passphraseController,
         autofocus: true,
         hintText: LocaleKeys.passphrase.tr(),
-        keyboardType: TextInputType.emailAddress,
-        obscureText: true,
+        keyboardType: TextInputType.text,
+        autofillHints: const [AutofillHints.password],
+        obscureText: _isObscured,
+        maxLength: passwordMaxLength,
+        counterText: '',
         focusNode: _passphraseFieldFocusNode,
+        suffixIcon: PasswordVisibilityControl(
+          onVisibilityChange: (bool isObscured) {
+            setState(() {
+              _isObscured = isObscured;
+            });
+          },
+        ),
         onFieldSubmitted: (_) => _onSubmit(),
         validator: (String? text) {
           if (text == null || text.isEmpty) {
@@ -121,7 +139,8 @@ class _TrezorHiddenWalletState extends State<_TrezorHiddenWallet> {
       _passphraseFieldFocusNode.requestFocus();
       return;
     }
-
+    // We deliberately do not save passphrases
+    TextInput.finishAutofillContext(shouldSave: false);
     widget.onSubmit(_passphraseController.text);
   }
 
@@ -153,24 +172,23 @@ class _TrezorWalletItem extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 36.0,
-            ),
+            Icon(icon, size: 36.0),
             const SizedBox(width: 24),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(color: theme.textTheme.bodySmall?.color),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   description,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.textTheme.bodyLarge?.color),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
                 ),
               ],
             ),

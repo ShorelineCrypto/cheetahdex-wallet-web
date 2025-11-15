@@ -5,7 +5,7 @@ import 'package:web_dex/shared/widgets/truncate_middle_text.dart';
 
 class CopiedText extends StatelessWidget {
   const CopiedText({
-    Key? key,
+    super.key,
     required this.copiedValue,
     this.text,
     this.maxLines,
@@ -18,7 +18,7 @@ class CopiedText extends StatelessWidget {
     this.fontWeight = FontWeight.w500,
     this.iconSize = 22,
     this.height,
-  }) : super(key: key);
+  });
 
   final String copiedValue;
   final String? text;
@@ -35,7 +35,6 @@ class CopiedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final softWrap = (maxLines ?? 0) > 1;
     final String showingText = text ?? copiedValue;
     final Color? background =
         backgroundColor ?? Theme.of(context).inputDecorationTheme.fillColor;
@@ -57,32 +56,30 @@ class CopiedText extends StatelessWidget {
               Container(
                 key: const Key('coin-details-address-field'),
                 child: isTruncated
-                  ? Flexible(
-                      child: TruncatedMiddleText(
-                        showingText,
-                        style: TextStyle(
-                          fontSize: fontSize,
-                          fontWeight: fontWeight,
-                          color: fontColor,
-                          height: height,
+                    ? Flexible(
+                        child: TruncatedMiddleText(
+                          showingText,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: fontWeight,
+                            color: fontColor,
+                            height: height,
+                          ),
+                        ),
+                      )
+                    : Flexible(
+                        child: AutoScrollText(
+                          text: showingText,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: fontWeight,
+                            color: fontColor,
+                            height: height,
+                          ),
                         ),
                       ),
-                    )
-                  : Flexible(
-                      child: AutoScrollText(
-                        text: showingText,
-                        style: TextStyle(
-                          fontSize: fontSize,
-                          fontWeight: fontWeight,
-                          color: fontColor,
-                          height: height,
-                        ),
-                      ),
-                    ),
               ),
-              const SizedBox(
-                width: 16,
-              ),
+              const SizedBox(width: 16),
               Icon(
                 Icons.copy_rounded,
                 color: Theme.of(context).textTheme.labelLarge?.color,
@@ -98,7 +95,7 @@ class CopiedText extends StatelessWidget {
 
 class CopiedTextV2 extends StatelessWidget {
   const CopiedTextV2({
-    Key? key,
+    super.key,
     required this.copiedValue,
     this.text,
     this.maxLines,
@@ -108,7 +105,7 @@ class CopiedTextV2 extends StatelessWidget {
     this.iconSize = 12,
     this.backgroundColor,
     this.textColor,
-  }) : super(key: key);
+  });
 
   final String copiedValue;
   final String? text;
@@ -124,7 +121,6 @@ class CopiedTextV2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final softWrap = (maxLines ?? 0) > 1;
     final String? showingText = text;
 
     return InkWell(
@@ -142,26 +138,28 @@ class CopiedTextV2 extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (isCopiedValueShown) ...[
-              Container(
-                key: const Key('coin-details-address-field'),
-                child: isTruncated
-                    ? Flexible(
-                        child: TruncatedMiddleText(
+              Flexible(
+                child: Container(
+                  key: const Key('coin-details-address-field'),
+                  child: isTruncated
+                      ? TruncatedMiddleText(
                           copiedValue,
                           level: 4,
                           style: TextStyle(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w700,
-                              color: textColor ?? const Color(0xFFADAFC4)),
-                        ),
-                      )
-                    : AutoScrollText(
-                        text: copiedValue,
-                        style: TextStyle(
                             fontSize: fontSize,
                             fontWeight: FontWeight.w700,
-                            color: textColor ?? const Color(0xFFADAFC4)),
-                      ),
+                            color: textColor ?? const Color(0xFFADAFC4),
+                          ),
+                        )
+                      : AutoScrollText(
+                          text: copiedValue,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w700,
+                            color: textColor ?? const Color(0xFFADAFC4),
+                          ),
+                        ),
+                ),
               ),
               const SizedBox(width: 4),
             ],
@@ -173,7 +171,7 @@ class CopiedTextV2 extends StatelessWidget {
             if (showingText != null) ...[
               const SizedBox(width: 10),
               Text(showingText),
-            ]
+            ],
           ],
         ),
       ),

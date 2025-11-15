@@ -11,7 +11,7 @@ sealed class PortfolioGrowthState extends Equatable {
 
 final class PortfolioGrowthInitial extends PortfolioGrowthState {
   const PortfolioGrowthInitial()
-      : super(selectedPeriod: const Duration(hours: 1));
+    : super(selectedPeriod: const Duration(hours: 1));
 }
 
 final class PortfolioGrowthChartLoadSuccess extends PortfolioGrowthState {
@@ -22,6 +22,9 @@ final class PortfolioGrowthChartLoadSuccess extends PortfolioGrowthState {
     required this.totalBalance,
     required this.totalChange24h,
     required this.percentageChange24h,
+    required this.totalCoins,
+    required this.coinsWithKnownBalance,
+    required this.coinsWithKnownBalanceAndFiat,
     this.isUpdating = false,
   });
 
@@ -30,33 +33,67 @@ final class PortfolioGrowthChartLoadSuccess extends PortfolioGrowthState {
   final double totalBalance;
   final double totalChange24h;
   final double percentageChange24h;
+  final int totalCoins;
+  final int coinsWithKnownBalance;
+  final int coinsWithKnownBalanceAndFiat;
   final bool isUpdating;
 
   @override
   List<Object> get props => <Object>[
-        portfolioGrowth,
-        percentageIncrease,
-        selectedPeriod,
-        totalBalance,
-        totalChange24h,
-        percentageChange24h,
-        isUpdating,
-      ];
+    portfolioGrowth,
+    percentageIncrease,
+    selectedPeriod,
+    totalBalance,
+    totalChange24h,
+    percentageChange24h,
+    totalCoins,
+    coinsWithKnownBalance,
+    coinsWithKnownBalanceAndFiat,
+    isUpdating,
+  ];
 }
 
 final class GrowthChartLoadFailure extends PortfolioGrowthState {
   const GrowthChartLoadFailure({
     required this.error,
     required super.selectedPeriod,
+    required this.totalCoins,
+    required this.coinsWithKnownBalance,
+    required this.coinsWithKnownBalanceAndFiat,
   });
 
   final BaseError error;
+  final int totalCoins;
+  final int coinsWithKnownBalance;
+  final int coinsWithKnownBalanceAndFiat;
 
   @override
-  List<Object> get props => <Object>[error, selectedPeriod];
+  List<Object> get props => <Object>[
+    error,
+    selectedPeriod,
+    totalCoins,
+    coinsWithKnownBalance,
+    coinsWithKnownBalanceAndFiat,
+  ];
 }
 
 final class PortfolioGrowthChartUnsupported extends PortfolioGrowthState {
-  const PortfolioGrowthChartUnsupported({required Duration selectedPeriod})
-      : super(selectedPeriod: selectedPeriod);
+  const PortfolioGrowthChartUnsupported({
+    required Duration selectedPeriod,
+    required this.totalCoins,
+    required this.coinsWithKnownBalance,
+    required this.coinsWithKnownBalanceAndFiat,
+  }) : super(selectedPeriod: selectedPeriod);
+
+  final int totalCoins;
+  final int coinsWithKnownBalance;
+  final int coinsWithKnownBalanceAndFiat;
+
+  @override
+  List<Object> get props => <Object>[
+    selectedPeriod,
+    totalCoins,
+    coinsWithKnownBalance,
+    coinsWithKnownBalanceAndFiat,
+  ];
 }

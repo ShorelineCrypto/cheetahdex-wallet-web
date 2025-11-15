@@ -21,8 +21,10 @@ class MainMenuBarMobile extends StatelessWidget {
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, state) {
         final bool isMMBotEnabled = state.mmBotSettings.isMMBotEnabled;
-        final bool tradingEnabled =
-            context.watch<TradingStatusBloc>().state is TradingEnabled;
+        final bool tradingEnabled = context
+            .watch<TradingStatusBloc>()
+            .state
+            .isEnabled;
         return DecoratedBox(
           decoration: BoxDecoration(
             color: theme.currentGlobal.cardColor,
@@ -92,10 +94,13 @@ class MainMenuBarMobile extends StatelessWidget {
                       ),
                     ),
                   Expanded(
-                    child: MainMenuBarMobileItem(
-                      value: MainMenuValue.nft,
-                      enabled: currentWallet?.isHW != true,
-                      isActive: selected == MainMenuValue.nft,
+                    child: Tooltip(
+                      message: LocaleKeys.nftDisabledTooltip.tr(),
+                      child: MainMenuBarMobileItem(
+                        value: MainMenuValue.nft,
+                        enabled: false,
+                        isActive: selected == MainMenuValue.nft,
+                      ),
                     ),
                   ),
                   Expanded(

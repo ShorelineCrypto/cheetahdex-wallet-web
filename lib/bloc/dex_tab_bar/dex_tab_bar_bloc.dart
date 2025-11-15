@@ -7,6 +7,7 @@ import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:web_dex/bloc/market_maker_bot/market_maker_order_list/market_maker_bot_order_list_repository.dart';
 import 'package:web_dex/bloc/market_maker_bot/market_maker_order_list/trade_pair.dart';
 import 'package:web_dex/blocs/trading_entities_bloc.dart';
+import 'package:web_dex/model/dex_list_type.dart';
 import 'package:web_dex/model/my_orders/my_order.dart';
 import 'package:web_dex/model/swap.dart';
 import 'package:web_dex/model/trading_entities_filter.dart';
@@ -91,7 +92,9 @@ class DexTabBarBloc extends Bloc<DexTabBarEvent, DexTabBarState> {
   }
 
   FutureOr<void> _onTabChanged(TabChanged event, Emitter<DexTabBarState> emit) {
-    emit(state.copyWith(tabIndex: event.tabIndex));
+    // Validate tabIndex to prevent out-of-bounds access
+    final int validatedIndex = event.tabIndex.clamp(0, DexListType.values.length - 1).toInt();
+    emit(state.copyWith(tabIndex: validatedIndex));
   }
 
   void _onFilterChanged(FilterChanged event, Emitter<DexTabBarState> emit) {

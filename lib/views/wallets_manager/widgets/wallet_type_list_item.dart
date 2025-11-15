@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
+import 'package:web_dex/shared/utils/platform_tuner.dart';
 import 'package:web_dex/model/wallet.dart';
 
 class WalletTypeListItem extends StatelessWidget {
@@ -99,9 +100,10 @@ class WalletTypeListItem extends StatelessWidget {
   bool _checkWalletSupport(WalletType type) {
     switch (type) {
       case WalletType.iguana:
-      case WalletType.trezor:
       case WalletType.hdwallet:
         return true;
+      case WalletType.trezor:
+        return !PlatformTuner.isNativeMobile;
       case WalletType.keplr:
       case WalletType.metamask:
         return false;

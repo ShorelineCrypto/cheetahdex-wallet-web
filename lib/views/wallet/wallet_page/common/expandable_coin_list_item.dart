@@ -1,5 +1,7 @@
 // lib/src/defi/asset/coin_list_item.dart
 
+import 'package:app_theme/src/dark/theme_custom_dark.dart';
+import 'package:app_theme/src/light/theme_custom_light.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,7 +9,6 @@ import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:komodo_ui/komodo_ui.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
-import 'package:web_dex/bloc/trading_status/trading_status_bloc.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
@@ -16,8 +17,6 @@ import 'package:web_dex/shared/widgets/coin_balance.dart';
 import 'package:web_dex/shared/widgets/coin_fiat_balance.dart';
 import 'package:web_dex/shared/widgets/coin_item/coin_item.dart';
 import 'package:web_dex/shared/widgets/coin_item/coin_item_size.dart';
-import 'package:app_theme/src/dark/theme_custom_dark.dart';
-import 'package:app_theme/src/light/theme_custom_light.dart';
 import 'package:web_dex/views/wallet/common/address_icon.dart';
 
 /// Widget for showing an authenticated user's balance and anddresses for a
@@ -51,10 +50,11 @@ class _ExpandableCoinListItemState extends State<ExpandableCoinListItem> {
   void initState() {
     super.initState();
     // Attempt to restore state from PageStorage using a unique key
-    _isExpanded = PageStorage.of(context).readState(
-          context,
-          identifier: '${widget.coin.abbr}_expanded',
-        ) as bool? ??
+    _isExpanded =
+        PageStorage.of(
+              context,
+            ).readState(context, identifier: '${widget.coin.abbr}_expanded')
+            as bool? ??
         false;
   }
 
@@ -74,21 +74,22 @@ class _ExpandableCoinListItemState extends State<ExpandableCoinListItem> {
   Widget build(BuildContext context) {
     final hasAddresses = widget.pubkeys?.keys.isNotEmpty ?? false;
     final sortedAddresses = hasAddresses
-        ? (List.of(widget.pubkeys!.keys)
-          ..sort((a, b) => b.balance.spendable.compareTo(a.balance.spendable)))
+        ? (List.of(
+            widget.pubkeys!.keys,
+          )..sort((a, b) => b.balance.spendable.compareTo(a.balance.spendable)))
         : null;
     final children = sortedAddresses != null
         ? sortedAddresses
-            .map(
-              (pubkey) => _AddressRow(
-                pubkey: pubkey,
-                coin: widget.coin,
-                isSwapAddress: pubkey == sortedAddresses.first,
-                onTap: widget.onTap,
-                onCopy: () => copyToClipBoard(context, pubkey.address),
-              ),
-            )
-            .toList()
+              .map(
+                (pubkey) => _AddressRow(
+                  pubkey: pubkey,
+                  coin: widget.coin,
+                  isSwapAddress: pubkey == sortedAddresses.first,
+                  onTap: widget.onTap,
+                  onCopy: () => copyToClipBoard(context, pubkey.address),
+                ),
+              )
+              .toList()
         : [SkeletonListTile()];
 
     // Match GroupedAssetTickerItem: 16 horizontal, 16 vertical for both (mobile)
@@ -101,10 +102,14 @@ class _ExpandableCoinListItemState extends State<ExpandableCoinListItem> {
       key: PageStorageKey('coin_${widget.coin.abbr}'),
       borderRadius: BorderRadius.circular(12),
       headerPadding: EdgeInsets.symmetric(
-          horizontal: horizontalPadding, vertical: verticalPadding),
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
       onTap: widget.onTap,
       childrenMargin: EdgeInsets.symmetric(
-          horizontal: horizontalPadding, vertical: verticalPadding),
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
       childrenDecoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
@@ -141,63 +146,76 @@ class _ExpandableCoinListItemState extends State<ExpandableCoinListItem> {
           // Use CoinItem with large size for mobile, matching GroupedAssetTickerItem
           AssetIcon(widget.coin.id, size: CoinItemSize.large.coinLogo),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Coin name - using headlineMedium for bold 16px text
-              Text(
-                widget.coin.name,
-                style: theme.textTheme.headlineMedium,
-              ),
-              // Crypto balance - using bodySmall for 12px secondary text
-              Text(
-                '${doubleToString(widget.coin.balance(context.sdk) ?? 0)} ${widget.coin.abbr}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
+          Expanded(
+            flex: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Coin name - using headlineMedium for bold 16px text
+                AutoScrollText(
+                  text: widget.coin.displayName,
+                  style: theme.textTheme.headlineMedium,
+                ),
+                // Crypto balance - using bodySmall for 12px secondary text
+                AutoScrollText(
+                  text:
+                      '${doubleToString(widget.coin.balance(context.sdk) ?? 0)} ${widget.coin.abbr}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
           const Spacer(),
           // Right side: Price and trend info
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Current balance in USD - using headlineMedium for bold 16px text
-              Text(
-                '\$${widget.coin.lastKnownUsdBalance(context.sdk) != null ? NumberFormat("#,##0.00").format(widget.coin.lastKnownUsdBalance(context.sdk)!) : "0.00"}',
-                style: theme.textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 2),
-              // Trend percentage
-              BlocBuilder<CoinsBloc, CoinsState>(
-                builder: (context, state) {
-                  final usdBalance =
-                      widget.coin.lastKnownUsdBalance(context.sdk) ?? 0.0;
-                  final change24hPercent = usdBalance == 0.0
-                      ? 0.0
-                      : state.get24hChangeForAsset(widget.coin.id);
-                  // Calculate the 24h USD change value
-                  final change24hValue =
-                      change24hPercent != null && usdBalance > 0
-                          ? (change24hPercent * usdBalance / 100)
-                          : 0.0;
-                  final themeCustom =
-                      Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).extension<ThemeCustomDark>()!
-                          : Theme.of(context).extension<ThemeCustomLight>()!;
-                  return TrendPercentageText(
-                    percentage: change24hPercent ?? 0.0,
-                    upColor: themeCustom.increaseColor,
-                    downColor: themeCustom.decreaseColor,
-                    value: change24hValue,
-                    valueFormatter: (value) =>
-                        NumberFormat.currency(symbol: '\$').format(value),
-                    iconSize: 12,
-                    spacing: 2,
-                    textStyle: theme.textTheme.bodySmall,
-                  );
-                },
-              ),
-            ],
+          Expanded(
+            flex: 7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Current balance in USD - using headlineMedium for bold 16px text
+                if (widget.coin.lastKnownUsdBalance(context.sdk) != null)
+                  Text(
+                    '\$${NumberFormat("#,##0.00").format(widget.coin.lastKnownUsdBalance(context.sdk)!)}',
+                    style: theme.textTheme.headlineMedium,
+                  ),
+                const SizedBox(height: 2),
+                // Trend percentage
+                BlocBuilder<CoinsBloc, CoinsState>(
+                  builder: (context, state) {
+                    final usdBalance = widget.coin.lastKnownUsdBalance(
+                      context.sdk,
+                    );
+                    if (usdBalance == null) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final change24hPercent = usdBalance == 0.0
+                        ? 0.0
+                        : state.get24hChangeForAsset(widget.coin.id);
+                    // Calculate the 24h USD change value
+                    final change24hValue =
+                        change24hPercent != null && usdBalance > 0
+                        ? (change24hPercent * usdBalance / 100)
+                        : 0.0;
+                    final themeCustom =
+                        Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).extension<ThemeCustomDark>()!
+                        : Theme.of(context).extension<ThemeCustomLight>()!;
+                    return TrendPercentageText(
+                      percentage: change24hPercent,
+                      value: change24hValue,
+                      upColor: themeCustom.increaseColor,
+                      downColor: themeCustom.decreaseColor,
+                      valueFormatter: (value) =>
+                          NumberFormat.currency(symbol: '\$').format(value),
+                      iconSize: 12,
+                      spacing: 2,
+                      textStyle: theme.textTheme.bodySmall,
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -219,8 +237,10 @@ class _ExpandableCoinListItemState extends State<ExpandableCoinListItem> {
           CoinBalance(coin: widget.coin),
           BlocBuilder<CoinsBloc, CoinsState>(
             builder: (context, state) {
-              final usdBalance =
-                  widget.coin.lastKnownUsdBalance(context.sdk) ?? 0.0;
+              final usdBalance = widget.coin.lastKnownUsdBalance(context.sdk);
+              if (usdBalance == null) {
+                return const SizedBox.shrink();
+              }
 
               final change24hPercent = usdBalance == 0.0
                   ? 0.0
@@ -233,13 +253,13 @@ class _ExpandableCoinListItemState extends State<ExpandableCoinListItem> {
 
               final themeCustom =
                   Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).extension<ThemeCustomDark>()!
-                      : Theme.of(context).extension<ThemeCustomLight>()!;
+                  ? Theme.of(context).extension<ThemeCustomDark>()!
+                  : Theme.of(context).extension<ThemeCustomLight>()!;
               return TrendPercentageText(
                 percentage: change24hPercent,
+                value: change24hValue,
                 upColor: themeCustom.increaseColor,
                 downColor: themeCustom.decreaseColor,
-                value: change24hValue,
                 valueFormatter: (value) =>
                     NumberFormat.currency(symbol: '\$').format(value),
               );
@@ -270,13 +290,14 @@ class _AddressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: ListTile(
         onTap: onTap,
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 12,
+          horizontal: 16,
+        ),
         leading: AddressIcon(address: pubkey.address),
         title: Row(
           children: [
@@ -296,12 +317,24 @@ class _AddressRow extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
               ),
             ),
-            if (isSwapAddress &&
-                context.watch<TradingStatusBloc>().state is TradingEnabled) ...[
+            if (isSwapAddress) ...[
               const SizedBox(width: 8),
-              Chip(
-                label: Text(
-                  LocaleKeys.tradingAddress.tr(),
+              // TODO: Refactor to use "DexPill" component from the SDK UI library (not yet created)
+              Padding(
+                padding: EdgeInsets.only(left: isMobile ? 4 : 8),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isMobile ? 6 : 8,
+                    horizontal: isMobile ? 8 : 12.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                  child: Text(
+                    LocaleKeys.swapAddress.tr(),
+                    style: TextStyle(fontSize: isMobile ? 9 : 12),
+                  ),
                 ),
               ),
             ],
@@ -358,6 +391,4 @@ class CoinMoreActionsButton extends StatelessWidget {
   }
 }
 
-enum CoinMoreActions {
-  disable,
-}
+enum CoinMoreActions { disable }

@@ -2,8 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_window_close/flutter_window_close.dart';
+import 'package:get_it/get_it.dart';
+import 'package:komodo_cex_market_data/komodo_cex_market_data.dart';
 import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/mm2/mm2.dart';
+import 'package:web_dex/mm2/mm2_api/mm2_api.dart';
 import 'package:web_dex/shared/utils/platform_tuner.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/utils/window/window.dart';
@@ -21,10 +24,7 @@ class WindowCloseHandler extends StatefulWidget {
   /// Creates a WindowCloseHandler.
   ///
   /// The [child] parameter must not be null.
-  const WindowCloseHandler({
-    super.key,
-    required this.child,
-  });
+  const WindowCloseHandler({super.key, required this.child});
 
   /// The widget below this widget in the tree.
   final Widget child;
@@ -125,6 +125,17 @@ class _WindowCloseHandlerState extends State<WindowCloseHandler>
       _hasSdkBeenDisposed = true;
 
       try {
+        final getIt = GetIt.I;
+        if (getIt.isRegistered<Mm2Api>()) {
+          await getIt<Mm2Api>().dispose();
+          getIt.unregister<Mm2Api>();
+        }
+
+        if (getIt.isRegistered<SparklineRepository>()) {
+          await getIt<SparklineRepository>().dispose();
+          getIt.unregister<SparklineRepository>();
+        }
+
         await mm2.dispose();
         log('Window close handler: SDK disposed successfully');
       } catch (e, s) {
