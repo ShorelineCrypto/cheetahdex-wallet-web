@@ -9,7 +9,9 @@ import 'package:web_dex/bloc/cex_market_data/profit_loss/models/fiat_value.dart'
 import 'package:web_dex/bloc/cex_market_data/profit_loss/models/profit_loss.dart';
 import 'package:web_dex/bloc/cex_market_data/profit_loss/profit_loss_repository.dart';
 import 'package:web_dex/bloc/cex_market_data/sdk_auth_activation_extension.dart';
+import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
 import 'package:web_dex/model/coin.dart';
+import 'package:web_dex/shared/constants.dart';
 
 part 'asset_overview_event.dart';
 part 'asset_overview_state.dart';
@@ -48,11 +50,8 @@ class AssetOverviewBloc extends Bloc<AssetOverviewEvent, AssetOverviewState> {
         event.walletId,
       );
 
-      final totalInvestment =
-          await _investmentRepository.calculateTotalInvestment(
-        event.walletId,
-        [event.coin],
-      );
+      final totalInvestment = await _investmentRepository
+          .calculateTotalInvestment(event.walletId, [event.coin]);
 
       final profitAmount = profitLosses.lastOrNull?.profitLoss ?? 0.0;
       // The percent which the user has gained or lost on their investment
@@ -96,9 +95,24 @@ class AssetOverviewBloc extends Bloc<AssetOverviewEvent, AssetOverviewState> {
         return;
       }
 
-      await _sdk.waitForEnabledCoinsToPassThreshold(event.coins);
+      final supportedCoins = await event.coins.filterSupportedCoins();
+      if (supportedCoins.isEmpty) {
+        _log.warning('No supported coins to load portfolio overview for');
+        return;
+      }
 
-      final profitLossesFutures = event.coins.map((coin) async {
+      await _sdk.waitForEnabledCoinsToPassThreshold(
+        supportedCoins,
+        delay: kActivationPollingInterval,
+      );
+
+      final activeCoins = await supportedCoins.removeInactiveCoins(_sdk);
+      if (activeCoins.isEmpty) {
+        _log.warning('No active coins to load portfolio overview for');
+        return;
+      }
+
+      final profitLossesFutures = activeCoins.map((coin) async {
         // Catch errors that occur for single coins and exclude them from the
         // total so that transaction fetching errors for a single coin do not
         // affect the total investment calculation.
@@ -108,18 +122,16 @@ class AssetOverviewBloc extends Bloc<AssetOverviewEvent, AssetOverviewState> {
             'USDT',
             event.walletId,
           );
-        } catch (e) {
+        } catch (e, s) {
+          _log.shout('Failed to fetch profit/loss for ${coin.id.id}', e, s);
           return Future.value(<ProfitLoss>[]);
         }
       });
 
       final profitLosses = await Future.wait(profitLossesFutures);
 
-      final totalInvestment =
-          await _investmentRepository.calculateTotalInvestment(
-        event.walletId,
-        event.coins,
-      );
+      final totalInvestment = await _investmentRepository
+          .calculateTotalInvestment(event.walletId, activeCoins);
 
       final profitAmount = profitLosses.fold(0.0, (sum, item) {
         return sum + (item.lastOrNull?.profitLoss ?? 0.0);
@@ -128,12 +140,14 @@ class AssetOverviewBloc extends Bloc<AssetOverviewEvent, AssetOverviewState> {
       final double portfolioInvestmentReturnPercentage =
           _calculateInvestmentReturnPercentage(profitAmount, totalInvestment);
       // Total profit / total purchase amount
-      final assetPortionPercentages =
-          _calculateAssetPortionPercentages(profitLosses, profitAmount);
+      final assetPortionPercentages = _calculateAssetPortionPercentages(
+        profitLosses,
+        profitAmount,
+      );
 
       emit(
         PortfolioAssetsOverviewLoadSuccess(
-          selectedAssetIds: event.coins.map((coin) => coin.id.id).toList(),
+          selectedAssetIds: activeCoins.map((coin) => coin.id.id).toList(),
           assetPortionPercentages: assetPortionPercentages,
           totalInvestment: totalInvestment,
           totalValue: FiatValue.usd(profitAmount),
@@ -164,20 +178,12 @@ class AssetOverviewBloc extends Bloc<AssetOverviewEvent, AssetOverviewState> {
     AssetOverviewSubscriptionRequested event,
     Emitter<AssetOverviewState> emit,
   ) async {
-    add(
-      AssetOverviewLoadRequested(
-        coin: event.coin,
-        walletId: event.walletId,
-      ),
-    );
+    add(AssetOverviewLoadRequested(coin: event.coin, walletId: event.walletId));
 
     _updateTimer?.cancel();
     _updateTimer = Timer.periodic(event.updateFrequency, (_) {
       add(
-        AssetOverviewLoadRequested(
-          coin: event.coin,
-          walletId: event.walletId,
-        ),
+        AssetOverviewLoadRequested(coin: event.coin, walletId: event.walletId),
       );
     });
   }

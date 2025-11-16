@@ -8,6 +8,8 @@ import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/best_orders/best_orders.dart';
 import 'package:web_dex/model/coin.dart';
+import 'package:web_dex/shared/utils/formatters.dart';
+import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/views/dex/simple/form/tables/coins_table/coins_table_item.dart';
 
 class GroupedListView<T> extends StatelessWidget {
@@ -29,7 +31,8 @@ class GroupedListView<T> extends StatelessWidget {
 
     // Add right padding to the last column if there are grouped items
     // to align the grouped and non-grouped
-    final areGroupedItemsPresent = groupedItems.isNotEmpty &&
+    final areGroupedItemsPresent =
+        groupedItems.isNotEmpty &&
         groupedItems.entries
             .where((element) => element.value.length > 1)
             .isNotEmpty;
@@ -60,8 +63,14 @@ class GroupedListView<T> extends StatelessWidget {
                         coin: _createHeaderCoinData(context, group.value),
                         onSelect: onSelect,
                         isGroupHeader: true,
-                        subtitleText: LocaleKeys.nNetworks
-                            .tr(args: [group.value.length.toString()]),
+                        subtitleText: LocaleKeys.nNetworks.tr(
+                          args: [group.value.length.toString()],
+                        ),
+                        trailing: _GroupedCoinBalance(
+                          coins: group.value
+                              .map((item) => getCoin(context, item))
+                              .toList(),
+                        ),
                       ),
                       children: group.value
                           .map((item) => buildItem(context, item, onSelect))
@@ -109,7 +118,7 @@ class GroupedListView<T> extends StatelessWidget {
     final Map<String, List<T>> grouped = {};
     for (final item in list) {
       final coin = getCoin(context, item);
-      grouped.putIfAbsent(coin.name, () => []).add(item);
+      grouped.putIfAbsent(coin.displayName, () => []).add(item);
     }
     return grouped;
   }
@@ -124,5 +133,64 @@ class GroupedListView<T> extends StatelessWidget {
       final String coinId = (item as BestOrder).coin;
       return (coinsState.walletCoins[coinId] ?? coinsState.coins[coinId])!;
     }
+  }
+}
+
+class _GroupedCoinBalance extends StatelessWidget {
+  const _GroupedCoinBalance({required this.coins});
+
+  final List<Coin> coins;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseFont = Theme.of(context).textTheme.bodySmall;
+    final balanceStyle = baseFont?.copyWith(fontWeight: FontWeight.w500);
+
+    // Sum on-chain spendable balances for all variants
+    double totalSpendable = 0.0;
+    for (final coin in coins) {
+      totalSpendable +=
+          context.sdk.balances.lastKnown(coin.id)?.spendable.toDouble() ?? 0.0;
+    }
+
+    // Sum USD balances (uses cached lastKnown data)
+    double totalUsd = 0.0;
+    for (final coin in coins) {
+      totalUsd += coin.lastKnownUsdBalance(context.sdk) ?? 0.0;
+    }
+
+    // Show base ticker without protocol/segwit suffixes in group header
+    final abbr = abbr2Ticker(coins.first.abbr);
+
+    final children = [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: AutoScrollText(
+              text: doubleToString(totalSpendable),
+              style: balanceStyle,
+              textAlign: TextAlign.right,
+            ),
+          ),
+          Text(' $abbr', style: balanceStyle),
+        ],
+      ),
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 100),
+        child: Text(
+          totalUsd > 0 ? ' (${formatUsdValue(totalUsd)})' : '',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
   }
 }

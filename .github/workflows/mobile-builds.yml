@@ -32,7 +32,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: cheetah
+          submodules: recursive
 
       - name: Install Flutter and dependencies
         uses: ./.github/actions/flutter-deps
@@ -58,7 +58,18 @@ jobs:
           store-password: ${{ secrets.ANDROID_STORE_PASSWORD }}
           key-password: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      - name: Fetch packages and generate assets
+      # Flutter build with `--no-pub` flag fails on Android due to a
+      # known regression with the build system in 3.32.5.
+      # https://github.com/flutter/flutter/issues/169336
+      # Run config-only before the full double-build to ensure success.
+      - name: Temporary workaround for Android build issue
+        if: ${{ matrix.platform == 'Android' }}
+        run: |
+          flutter build apk --config-only
+
+      - name: Fetch packages, generate assets, and build for ${{ matrix.platform }}
+        env:
+          GITHUB_API_PUBLIC_READONLY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: ./.github/actions/generate-assets
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,24 +79,18 @@ jobs:
           TRELLO_LIST_ID: ${{ secrets.TRELLO_LIST_ID }}
           FEEDBACK_API_KEY: ${{ secrets.FEEDBACK_API_KEY }}
           FEEDBACK_PRODUCTION_URL: ${{ secrets.FEEDBACK_PRODUCTION_URL }}
-          FEEDBACK_TEST_URL: ${{ secrets.FEEDBACK_TEST_URL }}
+          MATOMO_URL: ${{ secrets.MATOMO_URL }}
+          MATOMO_SITE_ID: ${{ secrets.MATOMO_SITE_ID }}
+          BUILD_COMMAND: ${{ matrix.build_command }}
 
-      # Flutter build with `--no-pub` flag fails on Android due to a
-      # known regression with the build system in 3.32.5.
-      # https://github.com/flutter/flutter/issues/169336
-      - name: Temporary workaround for Android build issue
-        if: ${{ matrix.platform == 'Android' }}
-        run: |
-          flutter build apk --config-only
-
-      - name: Build for ${{ matrix.platform }}
-        env:
-          GITHUB_API_PUBLIC_READONLY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ${{ matrix.build_command }}
+      - name: Compute short commit SHA
+        id: vars
+        shell: bash
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: ${{ matrix.artifact_name }}-${{ steps.vars.outputs.short_sha }}
           path: ${{ matrix.artifact_path }}
           retention-days: 5

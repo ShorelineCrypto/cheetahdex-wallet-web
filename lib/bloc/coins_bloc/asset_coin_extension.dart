@@ -2,9 +2,12 @@ import 'package:decimal/decimal.dart';
 import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
 import 'package:komodo_defi_types/komodo_defi_type_utils.dart';
 import 'package:komodo_defi_types/komodo_defi_types.dart';
+import 'package:rational/rational.dart' show Rational;
 import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/coin_type.dart';
+import 'package:web_dex/shared/utils/extensions/collection_extensions.dart';
+import 'package:web_dex/shared/utils/extensions/legacy_coin_migration_extensions.dart';
 
 extension AssetCoinExtension on Asset {
   Coin toCoin() {
@@ -15,7 +18,7 @@ extension AssetCoinExtension on Asset {
     final logoImageUrl = config.valueOrNull<String>('logo_image_url');
     final isCustomToken =
         (config.valueOrNull<bool>('is_custom_token') ?? false) ||
-            logoImageUrl != null;
+        logoImageUrl != null;
 
     final ProtocolData protocolData = ProtocolData(
       platform: id.parentId?.id ?? platform ?? '',
@@ -38,8 +41,9 @@ extension AssetCoinExtension on Asset {
       isTestCoin: protocol.isTestnet,
       coingeckoId: id.symbol.coinGeckoId,
       swapContractAddress: config.valueOrNull<String>('swap_contract_address'),
-      fallbackSwapContract:
-          config.valueOrNull<String>('fallback_swap_contract'),
+      fallbackSwapContract: config.valueOrNull<String>(
+        'fallback_swap_contract',
+      ),
       priority: priorityCoinsAbbrMap[id.id] ?? 0,
       state: CoinState.inactive,
       walletOnly: config.valueOrNull<bool>('wallet_only') ?? false,
@@ -49,8 +53,11 @@ extension AssetCoinExtension on Asset {
     );
   }
 
-  String? get contractAddress => protocol.config
-      .valueOrNull('protocol', 'protocol_data', 'contract_address');
+  String? get contractAddress => protocol.config.valueOrNull(
+    'protocol',
+    'protocol_data',
+    'contract_address',
+  );
   String? get platform =>
       protocol.config.valueOrNull('protocol', 'protocol_data', 'platform');
 }
@@ -58,6 +65,8 @@ extension AssetCoinExtension on Asset {
 extension CoinTypeExtension on CoinSubClass {
   CoinType toCoinType() {
     switch (this) {
+      case CoinSubClass.base:
+        return CoinType.base20;
       case CoinSubClass.ftm20:
         return CoinType.ftm20;
       case CoinSubClass.arbitrum:
@@ -96,6 +105,8 @@ extension CoinTypeExtension on CoinSubClass {
         return CoinType.erc20;
       case CoinSubClass.krc20:
         return CoinType.krc20;
+      case CoinSubClass.zhtlc:
+        return CoinType.zhtlc;
       default:
         return CoinType.utxo;
     }
@@ -103,6 +114,8 @@ extension CoinTypeExtension on CoinSubClass {
 
   bool isEvmProtocol() {
     switch (this) {
+      case CoinSubClass.base:
+        return true;
       case CoinSubClass.avx20:
       case CoinSubClass.bep20:
       case CoinSubClass.ftm20:
@@ -128,6 +141,8 @@ extension CoinTypeExtension on CoinSubClass {
 extension CoinSubClassExtension on CoinType {
   CoinSubClass toCoinSubClass() {
     switch (this) {
+      case CoinType.base20:
+        return CoinSubClass.base;
       case CoinType.ftm20:
         return CoinSubClass.ftm20;
       case CoinType.arb20:
@@ -166,6 +181,8 @@ extension CoinSubClassExtension on CoinType {
         return CoinSubClass.erc20;
       case CoinType.krc20:
         return CoinSubClass.krc20;
+      case CoinType.zhtlc:
+        return CoinSubClass.zhtlc;
     }
   }
 }
@@ -201,10 +218,7 @@ extension AssetBalanceExtension on Coin {
     KomodoDefiSdk sdk, {
     bool activateIfNeeded = true,
   }) {
-    return sdk.balances.watchBalance(
-      id,
-      activateIfNeeded: activateIfNeeded,
-    );
+    return sdk.balances.watchBalance(id, activateIfNeeded: activateIfNeeded);
   }
 
   /// Get the last-known balance for this coin.
@@ -225,5 +239,87 @@ extension AssetBalanceExtension on Coin {
     final price = sdk.marketData.priceIfKnown(id);
     if (price == null) return null;
     return (balance * price).spendable.toDouble();
+  }
+}
+
+extension CoinSupportOps on Iterable<Coin> {
+  /// Returns a list excluding test coins. Useful when filtering coins before
+  /// running portfolio calculations that assume production assets only.
+  List<Coin> withoutTestCoins() =>
+      where((coin) => !coin.isTestCoin).unmodifiable().toList();
+
+  /// Filters out unsupported coins by first removing test coins and then
+  /// evaluating the optional [isSupported] predicate. When the predicate is not
+  /// provided, only test coins are removed.
+  Future<List<Coin>> filterSupportedCoins([
+    Future<bool> Function(Coin coin)? isSupported,
+  ]) async {
+    final predicate = isSupported ?? _alwaysSupported;
+    final supportedCoins = <Coin>[];
+    for (final coin in this) {
+      if (coin.isTestCoin) continue;
+      if (await predicate(coin)) {
+        supportedCoins.add(coin);
+      }
+    }
+    return supportedCoins.unmodifiable().toList();
+  }
+
+  static Future<bool> _alwaysSupported(Coin _) async => true;
+
+  Future<List<Coin>> removeInactiveCoins(KomodoDefiSdk sdk) async {
+    final activeIds = await sdk.activatedAssetsCache.getActivatedAssetIds();
+
+    return where((coin) => activeIds.contains(coin.id)).unmodifiable().toList();
+  }
+
+  Future<List<Coin>> removeActiveCoins(KomodoDefiSdk sdk) async {
+    final activeIds = await sdk.activatedAssetsCache.getActivatedAssetIds();
+
+    return where(
+      (coin) => !activeIds.contains(coin.id),
+    ).unmodifiable().toList();
+  }
+
+  double totalLastKnownUsdBalance(KomodoDefiSdk sdk) {
+    double total = fold<double>(
+      0.00,
+      (prev, coin) => prev + (coin.lastKnownUsdBalance(sdk) ?? 0),
+    );
+
+    // Return at least 0.01 if total is positive but very small
+    if (total > 0 && total < 0.01) {
+      return 0.01;
+    }
+
+    return total;
+  }
+
+  Future<Rational> totalChange24h(KomodoDefiSdk sdk) async {
+    Rational totalChange = Rational.zero;
+    for (final coin in this) {
+      final double usdBalance = coin.lastKnownUsdBalance(sdk) ?? 0.0;
+      final usdBalanceDecimal = Decimal.parse(usdBalance.toString());
+      final change24h =
+          await sdk.marketData.priceChange24h(coin.id) ?? Decimal.zero;
+      totalChange += change24h * usdBalanceDecimal / Decimal.fromInt(100);
+    }
+    return totalChange;
+  }
+
+  Future<Rational> percentageChange24h(KomodoDefiSdk sdk) async {
+    final double totalBalance = totalLastKnownUsdBalance(sdk);
+    final Rational totalBalanceRational = Rational.parse(
+      totalBalance.toString(),
+    );
+    final Rational totalChange = await totalChange24h(sdk);
+
+    // Avoid division by zero or very small balances
+    if (totalBalanceRational <= Rational.fromInt(1, 100)) {
+      return Rational.zero;
+    }
+
+    // Return the percentage change
+    return (totalChange / totalBalanceRational) * Rational.fromInt(100);
   }
 }

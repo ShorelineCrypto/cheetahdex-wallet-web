@@ -24,6 +24,7 @@ import 'package:web_dex/views/settings/widgets/security_settings/seed_settings/s
 import 'package:web_dex/views/settings/widgets/security_settings/private_key_settings/private_key_show.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:web_dex/bloc/trading_status/trading_status_bloc.dart';
 
 /// Security settings page that manages both seed phrase and private key backup flows.
 ///
@@ -180,7 +181,15 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
         return const SeedConfirmSuccess();
 
       case SecuritySettingsStep.privateKeyShow:
-        return PrivateKeyShow(privateKeys: _sdkPrivateKeys ?? {});
+        final tradingState = context.read<TradingStatusBloc>().state;
+        final Set<AssetId> blockedAssets = switch (tradingState) {
+          TradingStatusLoadSuccess s => Set<AssetId>.of(s.disallowedAssets),
+          _ => const <AssetId>{},
+        };
+        return PrivateKeyShow(
+          privateKeys: _sdkPrivateKeys ?? <AssetId, List<PrivateKey>>{},
+          blockedAssetIds: blockedAssets,
+        );
 
       case SecuritySettingsStep.passwordUpdate:
         _clearAllSensitiveData(); // Clear data when changing password
@@ -236,25 +245,43 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   ///
   /// This approach provides better UX by showing loading state during the entire operation.
   Future<void> onViewPrivateKeysPressed(BuildContext context) async {
+    // IMPORTANT: Store keys in a local variable first to avoid state loss during async operations.
+    // The onPasswordValidated callback executes asynchronously within WidgetsBinding.instance.addPostFrameCallback,
+    // and setting _sdkPrivateKeys directly inside the callback may cause the state to be lost when the widget
+    // rebuilds or when the dialog closes. By storing data in a local variable first and then assigning it to
+    // _sdkPrivateKeys AFTER the dialog closes, we ensure the state is preserved when the widget rebuilds.
+    Map<AssetId, List<PrivateKey>>? fetchedKeys;
+    bool isEmptyKeys = false;
+    
+    // Store SDK reference before async operations to avoid BuildContext usage across async gaps
+    final sdk = context.sdk;
+    
     final bool success = await walletPasswordDialogWithLoading(
       context,
       onPasswordValidated: (String password) async {
         try {
           // Fetch private keys directly into local UI state
           // This keeps sensitive data in minimal scope
-          final privateKeys = await context.sdk.security.getPrivateKeys();
+          final privateKeys = await sdk.security.getPrivateKeys();
+
+          // Check if private keys are empty (e.g., when coins haven't been activated yet)
+          if (privateKeys.isEmpty) {
+            isEmptyKeys = true;
+            return false; // Failure - empty private keys
+          }
+
+          // Filter out excluded assets (NFTs only)
+          // Geo-blocked assets are handled by the UI toggle
           final filteredPrivateKeyEntries = privateKeys.entries.where(
             (entry) => !excludedAssetList.contains(entry.key.id),
           );
-          _sdkPrivateKeys = Map.fromEntries(filteredPrivateKeyEntries);
+          fetchedKeys = Map.fromEntries(filteredPrivateKeyEntries);
 
           return true; // Success
         } catch (e) {
-          // Clear sensitive data on any error
+          isEmptyKeys = false; // Exception occurred, not empty keys
+          // Clear any previously stored private keys to prevent stale data from persisting
           _clearPrivateKeyData();
-
-          // Log error for debugging
-          debugPrint('Failed to retrieve private keys: ${e.toString()}');
 
           return false; // Failure
         }
@@ -265,16 +292,31 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
       passwordFieldKey: 'confirmation-showing-private-keys',
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    if (success) {
+    if (success && fetchedKeys != null) {
+      // Set the keys AFTER dialog closes to ensure state is preserved
+      setState(() {
+        _sdkPrivateKeys = fetchedKeys;
+      });
+      // Clear the local reference to minimize the number of places holding sensitive data
+      // Note: fetchedKeys is a reference to the same Map object, so we only set it to null
+      // to remove the extra reference, not clear() which would clear the data used by _sdkPrivateKeys
+      fetchedKeys = null;
+      
       // Private keys are ready, show the private keys screen
       // ignore: use_build_context_synchronously
       context.read<SecuritySettingsBloc>().add(const ShowPrivateKeysEvent());
     } else {
       // Show error to user
+      // Check if failure was due to empty private keys
+      final errorMessage = isEmptyKeys
+          ? LocaleKeys.privateKeysEmptyError.tr()
+          : LocaleKeys.privateKeyRetrievalFailed.tr();
       // ignore: use_build_context_synchronously
-      _showPrivateKeyError(context, LocaleKeys.privateKeyRetrievalFailed.tr());
+      _showPrivateKeyError(context, errorMessage);
     }
   }
 

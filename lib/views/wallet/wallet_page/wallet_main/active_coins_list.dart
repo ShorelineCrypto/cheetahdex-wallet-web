@@ -7,17 +7,20 @@ import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
 import 'package:web_dex/bloc/settings/settings_bloc.dart';
+import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/coin_utils.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
+import 'package:web_dex/services/arrr_activation/arrr_activation_service.dart';
 
 import 'package:web_dex/views/wallet/coin_details/coin_details_info/coin_addresses.dart';
 import 'package:web_dex/views/wallet/common/address_copy_button.dart';
 import 'package:web_dex/views/wallet/common/address_icon.dart';
 import 'package:web_dex/views/wallet/common/address_text.dart';
 import 'package:web_dex/views/wallet/wallet_page/common/expandable_coin_list_item.dart';
+import 'package:web_dex/views/wallet/wallet_page/common/zhtlc/zhtlc_activation_status_bar.dart';
 
 class ActiveCoinsList extends StatelessWidget {
   const ActiveCoinsList({
@@ -25,11 +28,13 @@ class ActiveCoinsList extends StatelessWidget {
     required this.searchPhrase,
     required this.withBalance,
     required this.onCoinItemTap,
+    this.arrrActivationService,
   });
 
   final String searchPhrase;
   final bool withBalance;
   final Function(Coin) onCoinItemTap;
+  final ArrrActivationService? arrrActivationService;
 
   @override
   Widget build(BuildContext context) {
@@ -61,29 +66,44 @@ class ActiveCoinsList extends StatelessWidget {
           sorted = removeTestCoins(sorted);
         }
 
-        return SliverList.builder(
-          itemCount: sorted.length,
-          itemBuilder: (context, index) {
-            final coin = sorted[index];
-
-            // Fetch pubkeys if not already loaded
-            if (!state.pubkeys.containsKey(coin.abbr)) {
-              // TODO: Investigate if this is causing performance issues
-              context.read<CoinsBloc>().add(CoinsPubkeysRequested(coin.abbr));
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(bottom: 10),
-              child: ExpandableCoinListItem(
-                // Changed from ExpandableCoinListItem
-                key: Key('coin-list-item-${coin.abbr.toLowerCase()}'),
-                coin: coin,
-                pubkeys: state.pubkeys[coin.abbr],
-                isSelected: false,
-                onTap: () => onCoinItemTap(coin),
+        return SliverMainAxisGroup(
+          slivers: [
+            // ZHTLC Activation Status Bar
+            if (arrrActivationService != null)
+              SliverToBoxAdapter(
+                child: ZhtlcActivationStatusBar(
+                  activationService: arrrActivationService!,
+                ),
               ),
-            );
-          },
+
+            // Coin List
+            SliverList.builder(
+              itemCount: sorted.length,
+              itemBuilder: (context, index) {
+                final coin = sorted[index];
+
+                // Fetch pubkeys if not already loaded
+                if (!state.pubkeys.containsKey(coin.abbr)) {
+                  // TODO: Investigate if this is causing performance issues
+                  context.read<CoinsBloc>().add(
+                    CoinsPubkeysRequested(coin.abbr),
+                  );
+                }
+
+                return Padding(
+                  padding: EdgeInsets.only(bottom: 10),
+                  child: ExpandableCoinListItem(
+                    // Changed from ExpandableCoinListItem
+                    key: Key('coin-list-item-${coin.abbr.toLowerCase()}'),
+                    coin: coin,
+                    pubkeys: state.pubkeys[coin.abbr],
+                    isSelected: false,
+                    onTap: () => onCoinItemTap(coin),
+                  ),
+                );
+              },
+            ),
+          ],
         );
       },
     );
@@ -219,11 +239,23 @@ class AddressBalanceCard extends StatelessWidget {
                             coinAbbr: coin.abbr,
                           ),
                           if (pubkey.isActiveForSwap)
-                            Chip(
-                              label: Text(LocaleKeys.tradingAddress.tr()),
-                              backgroundColor: Theme.of(
-                                context,
-                              ).primaryColor.withOpacity(0.1),
+                            // TODO: Refactor to use "DexPill" component from the SDK UI library (not yet created)
+                            Padding(
+                              padding: EdgeInsets.only(left: isMobile ? 4 : 8),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: isMobile ? 6 : 8,
+                                  horizontal: isMobile ? 8 : 12.0,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.tertiary,
+                                  borderRadius: BorderRadius.circular(16.0),
+                                ),
+                                child: Text(
+                                  LocaleKeys.swapAddress.tr(),
+                                  style: TextStyle(fontSize: isMobile ? 9 : 12),
+                                ),
+                              ),
                             ),
                         ],
                       ),

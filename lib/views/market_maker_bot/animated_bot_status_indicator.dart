@@ -5,9 +5,13 @@ import 'package:web_dex/generated/codegen_loader.g.dart';
 
 class AnimatedBotStatusIndicator extends StatefulWidget {
   final MarketMakerBotStatus status;
+  final double widthThreshold;
 
-  const AnimatedBotStatusIndicator({Key? key, required this.status})
-      : super(key: key);
+  const AnimatedBotStatusIndicator({
+    super.key,
+    required this.status,
+    this.widthThreshold = 100,
+  });
 
   @override
   State<AnimatedBotStatusIndicator> createState() =>
@@ -44,29 +48,38 @@ class _AnimatedBotStatusIndicatorState extends State<AnimatedBotStatusIndicator>
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedBuilder(
-          animation: _controller,
-          builder: (_, child) {
-            return Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _getStatusColor(widget.status)
-                    .withValues(alpha: _getOpacity(widget.status)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showText = constraints.maxWidth >= widget.widthThreshold;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (_, child) {
+                return Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _getStatusColor(
+                      widget.status,
+                    ).withValues(alpha: _getOpacity(widget.status)),
+                  ),
+                );
+              },
+            ),
+            if (showText) ...[
+              const SizedBox(width: 8),
+              Text(
+                widget.status.text,
+                style: Theme.of(context).textTheme.labelMedium,
               ),
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-        Text(
-          widget.status.text,
-          style: Theme.of(context).textTheme.labelMedium,
-        ),
-      ],
+            ],
+          ],
+        );
+      },
     );
   }
 

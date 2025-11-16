@@ -20,10 +20,14 @@ class NftsRepo {
   final Mm2ApiNft _api;
 
   Future<void> updateNft(List<NftBlockchains> chains) async {
-    // Ensure that the parent coins for the NFT chains are activated.
-    await _activateParentCoins(chains);
-    await _api.enableNftChains(chains);
-    final json = await _api.updateNftList(chains);
+    // Filter to only chains whose parent coins are already activated
+    final activatedChains = await _getActivatedChains(chains);
+    if (activatedChains.isEmpty) {
+      _log.info('No NFT chains with activated parent coins');
+      return;
+    }
+    await _api.enableNftChains(activatedChains);
+    final json = await _api.updateNftList(activatedChains);
     if (json['error'] != null) {
       _log.severe(json['error'] as String);
       throw ApiError(message: json['error'] as String);
@@ -31,10 +35,14 @@ class NftsRepo {
   }
 
   Future<List<NftToken>> getNfts(List<NftBlockchains> chains) async {
-    // Ensure that the parent coins for the NFT chains are activated.
-    await _activateParentCoins(chains);
-    await _api.enableNftChains(chains);
-    final json = await _api.getNftList(chains);
+    // Filter to only chains whose parent coins are already activated
+    final activatedChains = await _getActivatedChains(chains);
+    if (activatedChains.isEmpty) {
+      _log.info('No NFT chains with activated parent coins');
+      return [];
+    }
+    await _api.enableNftChains(activatedChains);
+    final json = await _api.getNftList(activatedChains);
     final jsonError = json['error'] as String?;
     if (jsonError != null) {
       _log.severe(jsonError);
@@ -65,34 +73,27 @@ class NftsRepo {
     }
   }
 
-  /// Ensures that the parent coins for the provided NFT chains are activated.
+  /// Checks if the parent coins for the provided NFT chains are activated.
+  /// Returns only the chains whose parent coins are already activated.
   ///
-  /// TODO: Migrate NFT functionality to the SDK. This is a temporary measure
-  /// during the transition period.
-  Future<void> _activateParentCoins(List<NftBlockchains> chains) async {
+  /// Note: We no longer automatically activate parent coins to avoid unnecessary
+  /// overhead. Users must manually enable the parent chain assets before using
+  /// NFT functionality for that chain.
+  Future<List<NftBlockchains>> _getActivatedChains(
+    List<NftBlockchains> chains,
+  ) async {
     final List<Coin> knownCoins = _coinsRepo.getKnownCoins();
-    final List<Coin> parentCoins = chains
-        .map((NftBlockchains chain) {
-          return knownCoins.firstWhereOrNull(
-            (Coin coin) => coin.id.id == chain.coinAbbr(),
-          );
-        })
-        .whereType<Coin>()
-        .toList();
-
-    if (parentCoins.isEmpty) {
-      return;
-    }
-
-    try {
-      await _coinsRepo.activateCoinsSync(
-        parentCoins,
-        notify: false,
-        addToWalletMetadata: false,
-        maxRetryAttempts: 10,
+    final List<Coin> activeCoins = await _coinsRepo.getWalletCoins();
+    
+    return chains.where((NftBlockchains chain) {
+      final parentCoin = knownCoins.firstWhereOrNull(
+        (Coin coin) => coin.id.id == chain.coinAbbr(),
       );
-    } catch (e, s) {
-      _log.shout('Failed to activate parent coins', e, s);
-    }
+      
+      if (parentCoin == null) return false;
+      
+      // Check if the parent coin is already activated
+      return activeCoins.any((coin) => coin.id.id == parentCoin.id.id);
+    }).toList();
   }
 }

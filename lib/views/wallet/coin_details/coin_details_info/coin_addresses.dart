@@ -2,6 +2,8 @@ import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:komodo_defi_sdk/komodo_defi_sdk.dart'
+    show AssetIdFaucetExtension;
 import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:komodo_ui/komodo_ui.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
@@ -13,6 +15,7 @@ import 'package:web_dex/bloc/coin_addresses/bloc/coin_addresses_state.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/model/coin.dart';
+import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/widgets/coin_type_tag.dart';
 import 'package:web_dex/shared/widgets/truncate_middle_text.dart';
@@ -221,7 +224,7 @@ class AddressCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(child: AddressText(address: address.address)),
                       const SizedBox(width: 8),
-                      if (coin.hasFaucet)
+                      if (coin.id.hasFaucet)
                         ConstrainedBox(
                           constraints: BoxConstraints(
                             minWidth: 80,
@@ -243,7 +246,6 @@ class AddressCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _Balance(address: address, coin: coin),
-                  const SizedBox(height: 4),
                 ],
               )
             : SizedBox(
@@ -257,7 +259,7 @@ class AddressCard extends StatelessWidget {
                       coinAbbr: coin.abbr,
                     ),
                     QrButton(coin: coin, address: address),
-                    if (coin.hasFaucet)
+                    if (coin.id.hasFaucet)
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           minWidth: 80,
@@ -286,9 +288,13 @@ class _Balance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final balance = address.balance.total.toDouble();
+    final price = coin.lastKnownUsdPrice(context.sdk);
+    final usdValue = price == null ? null : price * balance;
+    final fiat = formatUsdValue(usdValue);
+
     return Text(
-      '${doubleToString(address.balance.total.toDouble())} '
-      '${abbr2Ticker(coin.abbr)} (${address.balance.total.toDouble()})',
+      '${doubleToString(balance)} ${abbr2Ticker(coin.abbr)} ($fiat)',
       style: TextStyle(fontSize: isMobile ? 12 : 14),
     );
   }
@@ -592,6 +598,7 @@ class SwapAddressTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // TODO: Refactor to use "DexPill" component from the SDK UI library (not yet created)
     return address.isActiveForSwap
         ? Padding(
             padding: EdgeInsets.only(left: isMobile ? 4 : 8),
@@ -605,7 +612,7 @@ class SwapAddressTag extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16.0),
               ),
               child: Text(
-                LocaleKeys.tradingAddress.tr(),
+                LocaleKeys.swapAddress.tr(),
                 style: TextStyle(fontSize: isMobile ? 9 : 12),
               ),
             ),
@@ -642,7 +649,7 @@ class HideZeroBalanceCheckbox extends StatelessWidget {
       value: hideZeroBalance,
       onChanged: (value) {
         context.read<CoinAddressesBloc>().add(
-          UpdateHideZeroBalanceEvent(value),
+          CoinAddressesZeroBalanceVisibilityChanged(value),
         );
       },
     );
@@ -683,7 +690,7 @@ class CreateButton extends StatelessWidget {
                 createAddressStatus != FormStatus.submitting
             ? () {
                 context.read<CoinAddressesBloc>().add(
-                  const SubmitCreateAddressEvent(),
+                  const CoinAddressesAddressCreationSubmitted(),
                 );
               }
             : null,

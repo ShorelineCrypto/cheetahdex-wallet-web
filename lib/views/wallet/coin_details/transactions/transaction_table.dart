@@ -69,15 +69,22 @@ class TransactionTable extends StatelessWidget {
     return BlocBuilder<TransactionHistoryBloc, TransactionHistoryState>(
       builder: (BuildContext ctx, TransactionHistoryState state) {
         if (state.transactions.isEmpty && state.loading) {
-          return const SliverToBoxAdapter(
-            child: UiSpinnerList(),
-          );
+          return const SliverToBoxAdapter(child: UiSpinnerList());
         }
 
         if (state.error != null) {
+          String errorText;
+          if (state.error!.message.contains('Asset activation failed')) {
+            errorText = 'Asset activation failed for ${coin.displayName}';
+          } else {
+            errorText = LocaleKeys.connectionToServersFailing.tr(
+              args: [coin.displayName],
+            );
+          }
+
           return SliverToBoxAdapter(
             child: _ErrorMessage(
-              text: LocaleKeys.connectionToServersFailing.tr(args: [coin.name]),
+              text: errorText,
               textColor: theme.currentGlobal.colorScheme.error,
             ),
           );
@@ -120,7 +127,7 @@ class _TransactionsListWrapper extends StatelessWidget {
 
 class _ErrorMessage extends StatelessWidget {
   const _ErrorMessage({Key? key, required this.text, this.textColor})
-      : super(key: key);
+    : super(key: key);
   final String text;
   final Color? textColor;
 
@@ -143,10 +150,7 @@ class _ErrorMessage extends StatelessWidget {
             child: Center(
               child: SelectableText(
                 text,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: textColor, fontSize: 13),
               ),
             ),
           ),
@@ -157,20 +161,15 @@ class _ErrorMessage extends StatelessWidget {
 }
 
 class _IguanaCoinWithoutTxHistorySupport extends StatelessWidget {
-  const _IguanaCoinWithoutTxHistorySupport({
-    Key? key,
-    required this.coin,
-  }) : super(key: key);
+  const _IguanaCoinWithoutTxHistorySupport({Key? key, required this.coin})
+    : super(key: key);
   final Coin coin;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          LocaleKeys.noTxSupportHidden.tr(),
-          textAlign: TextAlign.center,
-        ),
+        Text(LocaleKeys.noTxSupportHidden.tr(), textAlign: TextAlign.center),
         Padding(
           padding: const EdgeInsets.only(top: 10.0),
           child: LaunchNativeExplorerButton(coin: coin),

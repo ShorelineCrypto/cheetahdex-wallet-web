@@ -24,6 +24,12 @@ abstract class PlatformTuner {
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
+  static bool get isIOS {
+    if (kIsWeb) return false;
+
+    return defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   static Future<void> setWindowTitleAndSize() async {
     if (!isNativeDesktop) return;
 

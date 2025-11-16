@@ -36,6 +36,19 @@ const bool kShowTradingWarning = false;
 
 const Duration kPerformanceLogInterval = Duration(minutes: 1);
 
+/// Enable debug logging for electrum connections and RPC methods.
+/// When enabled, logs detailed information about:
+/// - Electrum server connections and connection counts
+/// - RPC method calls with durations and responses
+/// - Coin activation events and polling mechanisms
+/// - Balance and price update polling
+const bool kDebugElectrumLogs = true;
+
+/// Temporary failure simulation toggles for testing UI/flows.
+/// Guarded by kDebugMode in calling sites.
+const bool kSimulateBestOrdersFailure = false;
+const double kSimulatedBestOrdersFailureRate = 0.5; // 50%
+
 // This information is here because it is not contextual and is branded.
 // Names of their own are not localized. Also, the application is initialized before
 // the localization package is initialized.
@@ -107,15 +120,8 @@ const Set<String> excludedAssetList = {
   'FENIX',
   'AWR',
   'BOT',
-  // Pirate activation params are not yet implemented, so we need to
-  // exclude it from the list of coins for now.
-  'ARRR',
-  'ZOMBIE',
   'SMTF-v2',
   'SFUSD',
-  'VOTE2023',
-  'RICK',
-  'MORTY',
 
   // NFT v2 coins: https://github.com/KomodoPlatform/coins/pull/1061 will be
   // used in the background, so users do not need to see them.
@@ -162,15 +168,12 @@ const List<String> appWalletOnlyAssetList = [
 
 /// Coins that are enabled by default on restore from seed or registration.
 /// This will not affect existing wallets.
+/// Reduced to only KMD to minimize initial connections and resource usage.
 List<String> get enabledByDefaultCoins => [
-  'KMD', // Always included (Komodo ecosystem)
+  'KMD', // Komodo ecosystem coin
   'CHTA', // Cheetahdex meme coin
   'NENG', // Cheetahdex default coin
-  if (kDebugMode) 'DOC',
-  if (kDebugMode) 'MARTY',
 ];
-
-List<String> get coinsWithFaucet => ['RICK', 'MORTY', 'DOC', 'MARTY'];
 
 const String logsDbName = 'logs';
 const String appFolder = 'CheetahdexWallet';
