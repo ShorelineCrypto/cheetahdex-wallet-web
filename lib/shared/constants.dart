@@ -56,7 +56,7 @@ final RegExp matrixIdRegex = RegExp(
   r'^@[a-zA-Z0-9._=-]+:[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
 );
 final Uri pricesUrlV3 = Uri.parse(
-  'https://prices.komodian.info/api/v2/tickers?expire_at=60',
+  'https://prices.gleec.com/api/v2/tickers?expire_at=60',
 );
 
 const int millisecondsIn24H = 86400000;
@@ -96,4 +96,4 @@ const String nftAntiSpamUrl = 'https://nft.antispam.dragonhound.info';
 const String geoBlockerApiUrl =
     'https://komodo-wallet-bouncer.komodoplatform.com/v1/';
 const String tradingBlacklistUrl =
-    'https://defi-stats.komodo.earth/api/v3/utils/blacklist';
+    'https://defistats.gleec.com/api/v3/utils/blacklist';
