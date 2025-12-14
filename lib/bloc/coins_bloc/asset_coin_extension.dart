@@ -62,6 +62,9 @@ extension AssetCoinExtension on Asset {
       protocol.config.valueOrNull('protocol', 'protocol_data', 'platform');
 }
 
+/// Legacy mapping between SDK [CoinSubClass] and the app-level [CoinType].
+///
+/// New code should prefer using [CoinSubClass] directly for protocol logic.
 extension CoinTypeExtension on CoinSubClass {
   CoinType toCoinType() {
     switch (this) {
@@ -71,6 +74,8 @@ extension CoinTypeExtension on CoinSubClass {
         return CoinType.ftm20;
       case CoinSubClass.arbitrum:
         return CoinType.arb20;
+      case CoinSubClass.sia:
+        return CoinType.sia;
       case CoinSubClass.slp:
         return CoinType.slp;
       case CoinSubClass.qrc20:
@@ -107,7 +112,12 @@ extension CoinTypeExtension on CoinSubClass {
         return CoinType.krc20;
       case CoinSubClass.zhtlc:
         return CoinType.zhtlc;
-      default:
+      case CoinSubClass.moonbeam:
+      case CoinSubClass.ewt:
+      case CoinSubClass.rskSmartBitcoin:
+      case CoinSubClass.unknown:
+        // These subclasses are not modeled in the legacy [CoinType] enum.
+        // New code should avoid going through CoinType entirely.
         return CoinType.utxo;
     }
   }
@@ -138,6 +148,10 @@ extension CoinTypeExtension on CoinSubClass {
   }
 }
 
+/// Legacy mapping from app-level [CoinType] back to SDK [CoinSubClass].
+///
+/// This is used by older flows that still think in terms of `CoinType`
+/// (e.g. some NFT / custom-token paths). Prefer [CoinSubClass] in new code.
 extension CoinSubClassExtension on CoinType {
   CoinSubClass toCoinSubClass() {
     switch (this) {
@@ -147,6 +161,8 @@ extension CoinSubClassExtension on CoinType {
         return CoinSubClass.ftm20;
       case CoinType.arb20:
         return CoinSubClass.arbitrum;
+      case CoinType.sia:
+        return CoinSubClass.sia;
       case CoinType.slp:
         return CoinSubClass.slp;
       case CoinType.qrc20:

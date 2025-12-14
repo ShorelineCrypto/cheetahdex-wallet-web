@@ -41,6 +41,13 @@ class KmdRewardsBloc implements BlocBase {
       );
     }
 
+    if (withdrawDetails.txHex == null) {
+      _claimInProgress = false;
+      return BlocResponse(
+        error: TextError(error: LocaleKeys.somethingWrong.tr()),
+      );
+    }
+
     final tx = await _mm2Api.sendRawTransaction(SendRawTransactionRequest(
       coin: 'KMD',
       txHex: withdrawDetails.txHex,

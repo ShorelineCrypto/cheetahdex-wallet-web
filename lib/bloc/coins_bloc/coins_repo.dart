@@ -775,10 +775,16 @@ class CoinsRepo {
             spendable: newSpendable,
           );
 
+          final updatedCoin = coin.copyWith(sendableBalance: newSpendable);
+
+          // Broadcast the updated balance so non-streaming assets still emit
+          // real-time change events through the same path as streaming assets.
+          _broadcastBalanceChange(updatedCoin);
+
           // Yield updated coin with new balance
           // We still set both the deprecated fields and rely on the SDK
           // for future access to maintain backward compatibility
-          yield coin.copyWith(sendableBalance: newSpendable);
+          yield updatedCoin;
         }
       } catch (e, s) {
         _log.warning('Failed to update balance for ${coin.id}', e, s);

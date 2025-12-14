@@ -1,17 +1,16 @@
 import 'package:app_theme/app_theme.dart';
-import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
-import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
 import 'package:web_dex/bloc/coins_manager/coins_manager_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/model/coin_type.dart';
+import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/wallet.dart';
 
 class CoinsManagerFiltersDropdown extends StatefulWidget {
@@ -99,11 +98,12 @@ class _Dropdown extends StatelessWidget {
     return BlocBuilder<CoinsManagerBloc, CoinsManagerState>(
       bloc: bloc,
       builder: (context, state) {
-        final List<CoinType> selectedCoinTypes = bloc.state.selectedCoinTypes;
-        final List<CoinType> listTypes = CoinType.values
-            .where((CoinType type) => _filterTypes(context, type))
-            .toList();
-        onTap(CoinType type) =>
+        final List<CoinSubClass> selectedCoinTypes =
+            bloc.state.selectedCoinTypes;
+
+        final List<CoinSubClass> listTypes = _buildFilterSubClasses(context);
+
+        onTap(CoinSubClass type) =>
             bloc.add(CoinsManagerCoinTypeSelect(type: type));
 
         final bool isLongListTypes = listTypes.length > 2;
@@ -139,26 +139,37 @@ class _Dropdown extends StatelessWidget {
     );
   }
 
-  bool _filterTypes(BuildContext context, CoinType type) {
+  /// Builds the list of available protocol filters dynamically from the
+  /// underlying coins, so that new SDK coin types automatically appear
+  /// without UI changes.
+  List<CoinSubClass> _buildFilterSubClasses(BuildContext context) {
     final coinsBloc = context.read<CoinsBloc>();
     final currentWallet = context.read<AuthBloc>().state.currentUser?.wallet;
+    Iterable<Coin> coinsSource;
+
     switch (currentWallet?.config.type) {
       case WalletType.iguana:
       case WalletType.hdwallet:
-        return coinsBloc.state.coins.values
-                .firstWhereOrNull((coin) => coin.type == type) !=
-            null;
+        coinsSource = coinsBloc.state.coins.values;
+        break;
       case WalletType.trezor:
-        // In Trezor mode, hide filter options that have no coins in the
-        // currently visible list (after search/test-coin filters).
-        return bloc.state.coins
-                .firstWhereOrNull((coin) => coin.type == type) !=
-            null;
+        // In Trezor mode, derive available filters from the currently
+        // visible list (after search/test-coin filters).
+        coinsSource = bloc.state.coins;
+        break;
       case WalletType.metamask:
       case WalletType.keplr:
       case null:
-        return false;
+        return const [];
     }
+
+    final subclasses = coinsSource
+        .map((coin) => coin.id.subClass)
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.formatted.compareTo(b.formatted));
+
+    return subclasses;
   }
 }
 
@@ -170,11 +181,11 @@ class _DropdownItem extends StatelessWidget {
     required this.isWide,
     required this.onTap,
   });
-  final CoinType type;
+  final CoinSubClass type;
   final bool isSelected;
   final bool isFirst;
   final bool isWide;
-  final Function(CoinType) onTap;
+  final Function(CoinSubClass) onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +221,7 @@ class _DropdownItem extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                type.toCoinSubClass().formatted,
+                type.formatted,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

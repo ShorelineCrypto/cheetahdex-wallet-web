@@ -14,7 +14,6 @@ import 'package:web_dex/bloc/coins_manager/coins_manager_sort.dart';
 import 'package:web_dex/bloc/settings/settings_repository.dart';
 import 'package:web_dex/blocs/trading_entities_bloc.dart';
 import 'package:web_dex/model/coin.dart';
-import 'package:web_dex/model/coin_type.dart';
 import 'package:web_dex/model/coin_utils.dart';
 import 'package:web_dex/shared/utils/extensions/kdf_user_extensions.dart';
 import 'package:web_dex/router/state/wallet_state.dart';
@@ -184,8 +183,11 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
     CoinsManagerCoinTypeSelect event,
     Emitter<CoinsManagerState> emit,
   ) {
-    final List<CoinType> newTypes = state.selectedCoinTypes.contains(event.type)
-        ? state.selectedCoinTypes.where((type) => type != event.type).toList()
+    final List<CoinSubClass> newTypes =
+        state.selectedCoinTypes.contains(event.type)
+            ? state.selectedCoinTypes
+                .where((type) => type != event.type)
+                .toList()
         : [...state.selectedCoinTypes, event.type];
 
     emit(state.copyWith(selectedCoinTypes: newTypes));
@@ -356,7 +358,9 @@ class CoinsManagerBloc extends Bloc<CoinsManagerEvent, CoinsManagerState> {
 
   List<Coin> _filterByType(List<Coin> coins) {
     return coins
-        .where((coin) => state.selectedCoinTypes.contains(coin.type))
+        .where(
+          (coin) => state.selectedCoinTypes.contains(coin.id.subClass),
+        )
         .toList();
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
 import 'package:komodo_defi_types/komodo_defi_type_utils.dart';
@@ -16,6 +17,7 @@ import 'package:web_dex/bloc/taker_form/taker_event.dart';
 import 'package:web_dex/bloc/taker_form/taker_state.dart';
 import 'package:web_dex/bloc/taker_form/taker_validator.dart';
 import 'package:web_dex/bloc/transformers.dart';
+import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/best_orders/best_orders.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/best_orders/best_orders_request.dart';
@@ -107,15 +109,33 @@ class TakerBloc extends Bloc<TakerEvent, TakerState> {
     TakerStartSwap event,
     Emitter<TakerState> emit,
   ) async {
+    final sellCoin = state.sellCoin;
+    final selectedOrder = state.selectedOrder;
+    final sellAmount = state.sellAmount;
+
+    if (sellCoin == null || selectedOrder == null || sellAmount == null) {
+      _log.warning(
+        'Attempted to start swap with incomplete state. sellCoin: '
+        '$sellCoin, selectedOrder: $selectedOrder, sellAmount: $sellAmount',
+      );
+      emit(state.copyWith(inProgress: () => false));
+      add(
+        TakerAddError(
+          DexFormError(error: LocaleKeys.dexUnableToStartSwap.tr()),
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(inProgress: () => true));
 
     final int callStart = DateTime.now().millisecondsSinceEpoch;
     final SellResponse response = await _dexRepo.sell(
       SellRequest(
-        base: state.sellCoin!.abbr,
-        rel: state.selectedOrder!.coin,
-        volume: state.sellAmount!,
-        price: state.selectedOrder!.price,
+        base: sellCoin.abbr,
+        rel: selectedOrder.coin,
+        volume: sellAmount,
+        price: selectedOrder.price,
         orderType: SellBuyOrderType.fillOrKill,
       ),
     );
@@ -129,12 +149,11 @@ class TakerBloc extends Bloc<TakerEvent, TakerState> {
           (await _sdk.auth.currentUser)?.wallet.config.type.name ?? 'unknown';
       _analyticsBloc.logEvent(
         SwapFailedEventData(
-          asset: state.sellCoin!.abbr,
-          secondaryAsset: state.selectedOrder!.coin,
-          network: state.sellCoin!.protocolType,
+          asset: sellCoin.abbr,
+          secondaryAsset: selectedOrder.coin,
+          network: sellCoin.protocolType,
           secondaryNetwork:
-              _coinsRepo.getCoin(state.selectedOrder!.coin)?.protocolType ??
-              'unknown',
+              _coinsRepo.getCoin(selectedOrder.coin)?.protocolType ?? 'unknown',
           failureStage: 'order_submission',
           hdType: walletType,
           durationMs: durationMs,
