@@ -156,15 +156,16 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
     await emit.forEach(
       coinUpdateStream,
       onData: (Coin coin) {
-        if (!state.walletCoins.containsKey(coin.abbr)) {
+        final key = coin.id.id;
+        if (!state.walletCoins.containsKey(key)) {
           _log.warning(
             'Coin ${coin.abbr} not found in wallet coins, skipping update',
           );
           return state;
         }
         return state.copyWith(
-          walletCoins: {...state.walletCoins, coin.id.id: coin},
-          coins: {...state.coins, coin.id.id: coin},
+          walletCoins: {...state.walletCoins, key: coin},
+          coins: {...state.coins, key: coin},
         );
       },
     );

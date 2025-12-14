@@ -14,7 +14,11 @@ class CoinsManagerState extends Equatable {
   });
   final CoinsManagerAction action;
   final String searchPhrase;
-  final List<CoinType> selectedCoinTypes;
+  /// Selected protocol filters, represented by SDK coin subclasses.
+  ///
+  /// Using [CoinSubClass] here keeps the UI in sync with SDK protocols
+  /// without requiring manual updates when new coin types are added.
+  final List<CoinSubClass> selectedCoinTypes;
   final List<Coin> coins;
   final List<Coin> selectedCoins;
   final CoinsManagerSortData sortData;
@@ -45,7 +49,7 @@ class CoinsManagerState extends Equatable {
   CoinsManagerState copyWith({
     CoinsManagerAction? action,
     String? searchPhrase,
-    List<CoinType>? selectedCoinTypes,
+    List<CoinSubClass>? selectedCoinTypes,
     List<Coin>? coins,
     List<Coin>? selectedCoins,
     CoinsManagerSortData? sortData,

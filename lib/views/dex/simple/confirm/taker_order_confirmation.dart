@@ -320,10 +320,23 @@ class _TakerOrderConfirmationState extends State<TakerOrderConfirmation> {
     final walletType = authBloc.state.currentUser?.type ?? '';
     final takerBloc = context.read<TakerBloc>();
     final coinsRepo = RepositoryProvider.of<CoinsRepo>(context);
-    final sellCoinObj = takerBloc.state.sellCoin!;
-    final buyCoinObj = coinsRepo.getCoin(takerBloc.state.selectedOrder!.coin);
+    final sellCoinObj = takerBloc.state.sellCoin;
+    final selectedOrder = takerBloc.state.selectedOrder;
+    final sellAmount = takerBloc.state.sellAmount;
+
+    if (sellCoinObj == null || selectedOrder == null || sellAmount == null) {
+      takerBloc.add(
+        TakerAddError(
+          DexFormError(error: LocaleKeys.dexUnableToStartSwap.tr()),
+        ),
+      );
+      takerBloc.add(TakerSetInProgress(false));
+      return;
+    }
+
+    final buyCoinObj = coinsRepo.getCoin(selectedOrder.coin);
     final sellCoin = sellCoinObj.abbr;
-    final buyCoin = buyCoinObj?.abbr ?? takerBloc.state.selectedOrder!.coin;
+    final buyCoin = buyCoinObj?.abbr ?? selectedOrder.coin;
     context.read<AnalyticsBloc>().logEvent(
       SwapInitiatedEventData(
         asset: sellCoin,

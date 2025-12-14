@@ -2,7 +2,8 @@ import 'package:web_dex/model/withdraw_details/fee_details.dart';
 
 class WithdrawDetails {
   WithdrawDetails({
-    required this.txHex,
+    this.txHex,
+    this.txJson,
     required this.txHash,
     required this.from,
     required this.to,
@@ -15,7 +16,11 @@ class WithdrawDetails {
     required this.feeDetails,
     required this.coin,
     required this.internalId,
-  });
+  }) : assert(
+          txHex != null || txJson != null,
+          'Either txHex or txJson must be provided',
+        );
+
   factory WithdrawDetails.fromJson(Map<String, dynamic> json) {
     final String totalAmount = json['total_amount'].toString();
     final String spentByMe = json['spent_by_me'].toString();
@@ -24,6 +29,7 @@ class WithdrawDetails {
 
     return WithdrawDetails(
       txHex: json['tx_hex'],
+      txJson: json['tx_json'],
       txHash: json['tx_hash'],
       from: List.from(json['from']),
       to: List.from(json['to']),
@@ -55,7 +61,8 @@ class WithdrawDetails {
         internalId: '',
       );
 
-  final String txHex;
+  final String? txHex;
+  final Map<String, dynamic>? txJson;
   final String txHash;
   final List<String> from;
   final List<String> to;
@@ -83,6 +90,7 @@ class WithdrawDetails {
   static WithdrawDetails fromTrezorJson(Map<String, dynamic> json) {
     return WithdrawDetails(
       txHex: json['tx_hex'],
+      txJson: json['tx_json'],
       txHash: json['tx_hash'],
       totalAmount: json['total_amount'].toString(),
       coin: json['coin'],
