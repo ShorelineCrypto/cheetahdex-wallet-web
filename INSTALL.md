@@ -134,6 +134,7 @@ To compile your own android app apk file, make sure your linux server (ubuntu 22
 ```
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
   cd cheetahdex-wallet-web && git checkout cheetahdex
+  git submodule update --init --recursive
   flutter clean
   flutter pub get
   dart run flutter_launcher_icons
