@@ -109,13 +109,18 @@ Map<String, int> priorityCoinsAbbrMap = {
 /// Order matters: coins are displayed in the order they appear in this list.
 const List<String> unauthenticatedUserPriorityTickers = [
   'BTC',
+  'CHTA',
+  'NENG',
+  'ARRR',
   'KMD',
+  'LTC',
+  'DOGE',
   'ETH',
   'BNB',
-  'LTC',
   'DASH',
+  'DGB',
   'ZEC',
-  'DOGE',
+  'FIRO',
 ];
 
 /// List of coins that are excluded from the list of coins displayed on the
