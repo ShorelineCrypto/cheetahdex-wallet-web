@@ -16,7 +16,9 @@ class CoinsManagerCoinsUpdate extends CoinsManagerEvent {
 
 class CoinsManagerCoinTypeSelect extends CoinsManagerEvent {
   const CoinsManagerCoinTypeSelect({required this.type});
-  final CoinType type;
+
+  /// Selected protocol filter, represented by SDK coin subclass.
+  final CoinSubClass type;
 }
 
 class CoinsManagerCoinsSwitch extends CoinsManagerEvent {

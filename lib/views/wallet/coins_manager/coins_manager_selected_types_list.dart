@@ -3,12 +3,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:web_dex/bloc/coins_manager/coins_manager_bloc.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/model/coin_type.dart';
-import 'package:web_dex/model/coin_utils.dart';
-import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/views/wallet/coins_manager/coins_manager_filter_type_label.dart';
 
 class CoinsManagerSelectedTypesList extends StatelessWidget {
@@ -18,7 +16,8 @@ class CoinsManagerSelectedTypesList extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData themeData = Theme.of(context);
 
-    return BlocSelector<CoinsManagerBloc, CoinsManagerState, List<CoinType>>(
+    return BlocSelector<CoinsManagerBloc, CoinsManagerState,
+        List<CoinSubClass>>(
       selector: (state) {
         return state.selectedCoinTypes;
       },
@@ -38,7 +37,8 @@ class CoinsManagerSelectedTypesList extends StatelessWidget {
                   itemCount: types.length,
                   itemBuilder: (BuildContext context, int index) {
                     final type = types[index];
-                    final Color protocolColor = getProtocolColor(type);
+                    final Color protocolColor =
+                        type.color ?? themeData.colorScheme.primary;
                     if (index == 0) {
                       return Row(
                         mainAxisSize: MainAxisSize.min,
@@ -64,10 +64,10 @@ class CoinsManagerSelectedTypesList extends StatelessWidget {
                           const SizedBox(width: 8),
                           Flexible(
                             child: CoinsManagerFilterTypeLabel(
-                              text: getCoinTypeName(type),
+                              text: type.formatted,
                               backgroundColor: protocolColor,
                               border: Border.all(
-                                color: type == CoinType.smartChain
+                                color: type == CoinSubClass.smartChain
                                     ? theme.custom.smartchainLabelBorderColor
                                     : protocolColor,
                               ),
@@ -85,10 +85,10 @@ class CoinsManagerSelectedTypesList extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: CoinsManagerFilterTypeLabel(
-                        text: getCoinTypeName(type),
+                        text: type.formatted,
                         backgroundColor: protocolColor,
                         border: Border.all(
-                          color: type == CoinType.smartChain
+                          color: type == CoinSubClass.smartChain
                               ? theme.custom.smartchainLabelBorderColor
                               : protocolColor,
                         ),

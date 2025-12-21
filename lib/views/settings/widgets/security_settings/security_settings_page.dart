@@ -91,10 +91,11 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<SecuritySettingsBloc>(
-      create: (context) => SecuritySettingsBloc(
-        SecuritySettingsState.initialState(),
-        kdfSdk: RepositoryProvider.of<KomodoDefiSdk>(context),
-      ),
+      create:
+          (context) => SecuritySettingsBloc(
+            SecuritySettingsState.initialState(),
+            kdfSdk: RepositoryProvider.of<KomodoDefiSdk>(context),
+          ),
       child: MultiBlocListener(
         listeners: [
           // Listen for step changes to manage sensitive data cleanup
@@ -111,8 +112,8 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
             if (isMobile) {
               return _SecuritySettingsPageMobile(
                 content: content,
-                onBackButtonPressed: () =>
-                    _handleBackButton(context, state.step),
+                onBackButtonPressed:
+                    () => _handleBackButton(context, state.step),
               );
             }
             return content;
@@ -202,8 +203,8 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   /// This maintains backward compatibility with the existing seed phrase
   /// backup flow while the private key flow uses the new hybrid approach.
   Future<void> onViewSeedPressed(BuildContext context) async {
-    final SecuritySettingsBloc securitySettingsBloc = context
-        .read<SecuritySettingsBloc>();
+    final SecuritySettingsBloc securitySettingsBloc =
+        context.read<SecuritySettingsBloc>();
 
     final String? pass = await walletPasswordDialog(context);
     if (pass == null) return;
@@ -220,7 +221,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
 
     _privKeys.clear();
     final parentCoins = coinsBloc.state.walletCoins.values.where(
-      (coin) => !coin.id.isChildAsset,
+      (coin) => !coin.id.isChildAsset && coin.id.subClass != CoinSubClass.sia,
     );
     for (final coin in parentCoins) {
       final result = await mm2Api.showPrivKey(
@@ -252,10 +253,10 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
     // _sdkPrivateKeys AFTER the dialog closes, we ensure the state is preserved when the widget rebuilds.
     Map<AssetId, List<PrivateKey>>? fetchedKeys;
     bool isEmptyKeys = false;
-    
+
     // Store SDK reference before async operations to avoid BuildContext usage across async gaps
     final sdk = context.sdk;
-    
+
     final bool success = await walletPasswordDialogWithLoading(
       context,
       onPasswordValidated: (String password) async {
@@ -305,16 +306,17 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
       // Note: fetchedKeys is a reference to the same Map object, so we only set it to null
       // to remove the extra reference, not clear() which would clear the data used by _sdkPrivateKeys
       fetchedKeys = null;
-      
+
       // Private keys are ready, show the private keys screen
       // ignore: use_build_context_synchronously
       context.read<SecuritySettingsBloc>().add(const ShowPrivateKeysEvent());
     } else {
       // Show error to user
       // Check if failure was due to empty private keys
-      final errorMessage = isEmptyKeys
-          ? LocaleKeys.privateKeysEmptyError.tr()
-          : LocaleKeys.privateKeyRetrievalFailed.tr();
+      final errorMessage =
+          isEmptyKeys
+              ? LocaleKeys.privateKeysEmptyError.tr()
+              : LocaleKeys.privateKeyRetrievalFailed.tr();
       // ignore: use_build_context_synchronously
       _showPrivateKeyError(context, errorMessage);
     }

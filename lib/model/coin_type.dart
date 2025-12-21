@@ -1,3 +1,9 @@
+/// Legacy coin "type" used as a compatibility layer while migrating the app
+/// to the SDK's `CoinSubClass`/`AssetId.subClass` protocol model.
+///
+/// New features and UI should avoid depending on [CoinType] directly and
+/// instead use SDK metadata. This enum exists only to keep older code paths
+/// working until they can be refactored.
 // anchor: protocols support
 enum CoinType {
   utxo,
@@ -21,4 +27,7 @@ enum CoinType {
   tendermint,
   slp,
   zhtlc,
+
+  /// Legacy glue for the Sia protocol (`CoinSubClass.sia`).
+  sia,
 }

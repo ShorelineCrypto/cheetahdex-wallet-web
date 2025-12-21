@@ -143,6 +143,8 @@ String getCoinTypeName(CoinType type, [String? symbol]) {
       return 'Native';
     case CoinType.smartChain:
       return 'Smart Chain';
+    case CoinType.sia:
+      return 'Sia';
     case CoinType.ftm20:
       return 'FTM-20';
     case CoinType.arb20:

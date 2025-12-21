@@ -127,13 +127,14 @@ Will create a cert file and key file, and update your nginx `sites-enabled` conf
 ## Cheetahdex Wallet Android App
 ### Step 1 - compile cheetahdex-wallet android app
 
-There 3 ways to compile android apk installation file: github action CI/CD method, docker method and flutter build method. Here android apk release was obtained through flutter method.
+There are 3 ways to compile android apk installation file: github action CI/CD method, docker method and flutter build method. Here android apk release was obtained through flutter method.
 
 To compile your own android app apk file, make sure your linux server (ubuntu 22.04) met the flutter/android studio dependency as shown above, then run below
 
 ```
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
   cd cheetahdex-wallet-web && git checkout cheetahdex
+  git submodule update --init --recursive
   flutter clean
   flutter pub get
   dart run flutter_launcher_icons
@@ -162,7 +163,45 @@ If step 1 failed with message like "duplicate error on color.xml bla bla", or th
   flutter build apk
 ```
 
+## Cheetahdex Wallet Linux Desktop App
+### Step 1 - compile cheetahdex-wallet Desktop Linux app
 
+There are 3 ways to compile linux desktop binary file: github action CI/CD method, docker method and flutter build method. Here linux release was obtained through flutter method.
+
+To compile your own linux release files, make sure your linux server (ubuntu 22.04) met the flutter/linux dependency as shown above, then run below
+
+```
+  git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
+  cd cheetahdex-wallet-web && git checkout cheetahdex
+  git submodule update --init --recursive
+  flutter clean
+  flutter pub get
+  flutter build linux
+```
+
+If above command runs successfully, it may say that coins has been updated and crash, please re-compile linux app again. Now re-compile:
+
+```commandline
+    flutter build linux
+```
+
+Now your linux binary release files will be built successfully under 'build/linux/x64/release/bundle' folder.  Rename this `bundle` folder name into proper linux folder with version, then move the whole folder into desired installation location such as below:
+
+```commandline
+mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.3.1
+
+```
+
+### Step 2 - Trouble shoot Linux Failure on kdf
+
+You can launch the linux app from Linux Desktop by double clicking the binary file directly.  However, it is known that if you symbolic link the binary file into other location such as Desktop, an error of "kdf not found" will show up. 
+
+You can also launch the linux wallet app on terminal with all the log printing out in details on terminal as below:
+```commandline
+  cd ~/cheetahdex-wallet_linux_unified_0.9.3.1
+  ./CheetahdexWallet &
+  
+```
 
 
 

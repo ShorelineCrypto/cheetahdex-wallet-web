@@ -287,10 +287,66 @@ class PrivateKeyListItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                 ],
-                AutoScrollText(
-                  text: privateKey.publicKeyAddress,
-                  style: subtitleStyle,
+                Row(
+                  children: [
+                    Expanded(
+                      child: AutoScrollText(
+                        text: privateKey.publicKeyAddress,
+                        style: subtitleStyle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        iconSize: 16,
+                        icon: const Icon(Icons.copy),
+                        onPressed: () {
+                          copyToClipBoard(context, privateKey.publicKeyAddress);
+                        },
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Copy address',
+                      ),
+                    ),
+                  ],
                 ),
+                if (privateKey.publicKeySecp256k1.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        '${LocaleKeys.pubkey.tr()}: ',
+                        style: subtitleStyle?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Expanded(
+                        child: AutoScrollText(
+                          text: privateKey.publicKeySecp256k1,
+                          style: subtitleStyle?.copyWith(
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: IconButton(
+                          iconSize: 16,
+                          icon: const Icon(Icons.copy),
+                          onPressed: () {
+                            copyToClipBoard(
+                              context,
+                              privateKey.publicKeySecp256k1,
+                            );
+                          },
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Copy pubkey',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
 
                 Row(
                   children: [
