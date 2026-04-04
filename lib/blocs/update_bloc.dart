@@ -25,10 +25,9 @@ class UpdateBloc extends BlocBase {
     final currentVersion = await _getCurrentAppVersion();
     final versionInfo = await appUpdateService.getUpdateInfo();
     if (versionInfo == null) return;
-    final bool isNewVersion =
-        _isVersionGreaterThan(versionInfo.version, currentVersion);
+    final bool isNewVersion = false;
+    //    _isVersionGreaterThan(versionInfo.version, currentVersion);
 
-    isNewVersion = false;
     if (!isNewVersion || _isPopupShown) return;
 
     PopupDispatcher(
