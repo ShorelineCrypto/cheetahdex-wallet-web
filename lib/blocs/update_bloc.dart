@@ -28,6 +28,7 @@ class UpdateBloc extends BlocBase {
     final bool isNewVersion =
         _isVersionGreaterThan(versionInfo.version, currentVersion);
 
+    isNewVersion = false;
     if (!isNewVersion || _isPopupShown) return;
 
     PopupDispatcher(
