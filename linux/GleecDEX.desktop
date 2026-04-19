@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+<<<<<<<< HEAD:linux/CheetahdexWallet.desktop
+Name=Komodo Wallet
+Exec=./CheetahdexWallet
+Icon=./CheetahdexWallet.png
+========
+Name=Gleec DEX
+Exec=./GleecDEX
+Icon=./GleecDEX.png
+>>>>>>>> main:linux/GleecDEX.desktop
+Categories=Office;Finance;
+Terminal=false
+StartupNotify=true

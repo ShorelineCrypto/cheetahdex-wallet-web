@@ -1,5 +1,4 @@
-import 'package:app_theme/src/dark/theme_custom_dark.dart';
-import 'package:app_theme/src/light/theme_custom_light.dart';
+import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,11 +8,13 @@ import 'package:web_dex/analytics/events/portfolio_events.dart';
 import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
 import 'package:web_dex/bloc/assets_overview/bloc/asset_overview_bloc.dart';
 import 'package:web_dex/bloc/cex_market_data/portfolio_growth/portfolio_growth_bloc.dart';
-import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
+import 'package:web_dex/bloc/settings/settings_bloc.dart';
+import 'package:web_dex/bloc/settings/settings_event.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/model/coin.dart';
+import 'package:web_dex/shared/constants.dart';
+import 'package:web_dex/shared/utils/balance_utils.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/views/wallet/wallet_page/wallet_main/balance_summary_widget.dart';
 
@@ -46,12 +47,16 @@ class WalletOverview extends StatefulWidget {
 
 class _WalletOverviewState extends State<WalletOverview> {
   bool _logged = false;
+  static const double _desktopCaptionHeight = 20;
 
   @override
   Widget build(BuildContext context) {
     final themeCustom = Theme.of(context).brightness == Brightness.dark
         ? Theme.of(context).extension<ThemeCustomDark>()!
         : Theme.of(context).extension<ThemeCustomLight>()!;
+    final hideBalances = context.select(
+      (SettingsBloc bloc) => bloc.state.hideBalances,
+    );
 
     return BlocBuilder<CoinsBloc, CoinsState>(
       builder: (context, state) {
@@ -70,9 +75,10 @@ class _WalletOverviewState extends State<WalletOverview> {
         // Calculate the total balance from the SDK balances and market data
         // interfaces rather than the PortfolioGrowthBloc - limited coin
         // coverage and dependent on OHLC API request limits.
-        final double? totalBalance = _getTotalBalance(
-          state.walletCoins.values,
-          context,
+        final double? totalBalance = computeWalletTotalUsd(
+          coins: state.walletCoins.values,
+          coinsState: state,
+          sdk: context.sdk,
         );
 
         if (!_logged && stateWithData != null && totalBalance != null) {
@@ -106,7 +112,7 @@ class _WalletOverviewState extends State<WalletOverview> {
                   changeAmount: totalChange24h,
                   changePercentage: percentageChange24h,
                   onTap: widget.onAssetsPressed,
-                  onLongPress: totalBalance != null
+                  onLongPress: totalBalance != null && !hideBalances
                       ? () {
                           final formattedValue = NumberFormat.currency(
                             symbol: '\$',
@@ -114,16 +120,35 @@ class _WalletOverviewState extends State<WalletOverview> {
                           copyToClipBoard(context, formattedValue);
                         }
                       : null,
+                  hideBalances: hideBalances,
+                  onToggleHideBalances: () {
+                    context.read<SettingsBloc>().add(
+                      HideBalancesChanged(hideBalances: !hideBalances),
+                    );
+                  },
                 );
               },
             ),
           ] else ...[
             StatisticCard(
               key: const Key('overview-current-value'),
-              caption: Text(LocaleKeys.yourBalance.tr()),
+              caption: SizedBox(
+                height: _desktopCaptionHeight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(LocaleKeys.yourBalance.tr()),
+                    const SizedBox(width: 4),
+                    _BalancePrivacyToggleButton(hideBalances: hideBalances),
+                  ],
+                ),
+              ),
               value: totalBalance,
+              valueText: hideBalances && totalBalance != null
+                  ? '\$$maskedBalanceText'
+                  : null,
               onTap: widget.onAssetsPressed,
-              onLongPress: totalBalance != null
+              onLongPress: totalBalance != null && !hideBalances
                   ? () {
                       final formattedValue = NumberFormat.currency(
                         symbol: '\$',
@@ -131,7 +156,7 @@ class _WalletOverviewState extends State<WalletOverview> {
                       copyToClipBoard(context, formattedValue);
                     }
                   : null,
-              trendWidget: totalBalance != null
+              trendWidget: totalBalance != null && !hideBalances
                   ? BlocBuilder<PortfolioGrowthBloc, PortfolioGrowthState>(
                       builder: (context, state) {
                         final double totalChange =
@@ -159,12 +184,22 @@ class _WalletOverviewState extends State<WalletOverview> {
           ],
           StatisticCard(
             key: const Key('overview-all-time-investment'),
-            caption: Text(LocaleKeys.allTimeInvestment.tr()),
+            caption: SizedBox(
+              height: _desktopCaptionHeight,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(LocaleKeys.allTimeInvestment.tr()),
+              ),
+            ),
             value: totalBalance != null
                 ? (stateWithData?.totalInvestment.value)
                 : null,
+            valueText: hideBalances && totalBalance != null
+                ? '\$$maskedBalanceText'
+                : null,
             onTap: widget.onPortfolioGrowthPressed,
-            onLongPress: totalBalance != null && stateWithData != null
+            onLongPress:
+                totalBalance != null && stateWithData != null && !hideBalances
                 ? () {
                     final formattedValue = NumberFormat.currency(
                       symbol: '\$',
@@ -187,12 +222,22 @@ class _WalletOverviewState extends State<WalletOverview> {
           ),
           StatisticCard(
             key: const Key('overview-all-time-profit'),
-            caption: Text(LocaleKeys.allTimeProfit.tr()),
+            caption: SizedBox(
+              height: _desktopCaptionHeight,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(LocaleKeys.allTimeProfit.tr()),
+              ),
+            ),
             value: totalBalance != null
                 ? (stateWithData?.profitAmount.value)
                 : null,
+            valueText: hideBalances && totalBalance != null
+                ? '\$$maskedBalanceText'
+                : null,
             onTap: widget.onPortfolioProfitLossPressed,
-            onLongPress: totalBalance != null && stateWithData != null
+            onLongPress:
+                totalBalance != null && stateWithData != null && !hideBalances
                 ? () {
                     final formattedValue = NumberFormat.currency(
                       symbol: '\$',
@@ -200,7 +245,8 @@ class _WalletOverviewState extends State<WalletOverview> {
                     copyToClipBoard(context, formattedValue);
                   }
                 : null,
-            trendWidget: totalBalance != null && stateWithData != null
+            trendWidget:
+                totalBalance != null && stateWithData != null && !hideBalances
                 ? TrendPercentageText(
                     percentage: stateWithData.profitIncreasePercentage,
                     upColor: themeCustom.increaseColor,
@@ -215,14 +261,14 @@ class _WalletOverviewState extends State<WalletOverview> {
 
         if (isMobile) {
           return StatisticsCarousel(cards: statisticCards);
-        } else {
-          return Row(
-            spacing: 24,
-            children: statisticCards.map((card) {
-              return Expanded(child: card);
-            }).toList(),
-          );
         }
+
+        return Row(
+          spacing: 24,
+          children: statisticCards.map((card) {
+            return Expanded(child: card);
+          }).toList(),
+        );
       },
     );
   }
@@ -233,29 +279,33 @@ class _WalletOverviewState extends State<WalletOverview> {
       children: [Padding(padding: EdgeInsets.all(20.0), child: UiSpinner())],
     );
   }
+}
 
-  // TODO: Migrate these values to a new/existing bloc e.g. PortfolioGrowthBloc
-  double? _getTotalBalance(Iterable<Coin> coins, BuildContext context) {
-    // Check if any coins have USD balance data available
-    bool hasAnyUsdBalance = coins.any(
-      (coin) => coin.usdBalance(context.sdk) != null,
+class _BalancePrivacyToggleButton extends StatelessWidget {
+  const _BalancePrivacyToggleButton({required this.hideBalances});
+
+  final bool hideBalances;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: LocaleKeys.hideBalancesTitle.tr(),
+      child: InkResponse(
+        key: const Key('wallet-overview-privacy-toggle'),
+        radius: 16,
+        onTap: () {
+          context.read<SettingsBloc>().add(
+            HideBalancesChanged(hideBalances: !hideBalances),
+          );
+        },
+        child: Icon(
+          hideBalances
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          size: 20,
+        ),
+      ),
     );
-
-    // If no USD balance data is available, return null to show placeholder
-    if (!hasAnyUsdBalance) {
-      return null;
-    }
-
-    double total = coins.fold(
-      0,
-      (prev, coin) => prev + (coin.usdBalance(context.sdk) ?? 0),
-    );
-
-    if (total > 0.01) {
-      return total;
-    }
-
-    return total != 0 ? 0.01 : 0;
   }
 }
 

@@ -1,10 +1,11 @@
 import 'dart:math';
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:web_dex/bloc/cex_market_data/cache_constants.dart';
 
 class PointAdapter extends TypeAdapter<Point<double>> {
   @override
-  final int typeId = 18;
+  final int typeId = pointAdapterTypeId;
 
   @override
   Point<double> read(BinaryReader reader) {
@@ -12,10 +13,7 @@ class PointAdapter extends TypeAdapter<Point<double>> {
     final Map<int, dynamic> fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Point<double>(
-      fields[0] as double,
-      fields[1] as double,
-    );
+    return Point<double>(fields[0] as double, fields[1] as double);
   }
 
   @override

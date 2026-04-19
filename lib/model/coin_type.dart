@@ -7,6 +7,8 @@
 // anchor: protocols support
 enum CoinType {
   utxo,
+  trx,
+  trc20,
   smartChain,
   etc,
   erc20,
@@ -23,6 +25,7 @@ enum CoinType {
   sbch,
   ubiq,
   krc20,
+  grc20,
   tendermintToken,
   tendermint,
   slp,

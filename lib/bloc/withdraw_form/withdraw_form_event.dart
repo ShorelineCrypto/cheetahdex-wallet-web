@@ -34,6 +34,11 @@ class WithdrawFormCustomFeeChanged extends WithdrawFormEvent {
   const WithdrawFormCustomFeeChanged(this.fee);
 }
 
+class WithdrawFormFeePriorityChanged extends WithdrawFormEvent {
+  final WithdrawalFeeLevel? priority;
+  const WithdrawFormFeePriorityChanged(this.priority);
+}
+
 class WithdrawFormMemoChanged extends WithdrawFormEvent {
   final String? memo;
   const WithdrawFormMemoChanged(this.memo);
@@ -45,6 +50,16 @@ class WithdrawFormPreviewSubmitted extends WithdrawFormEvent {
 
 class WithdrawFormSubmitted extends WithdrawFormEvent {
   const WithdrawFormSubmitted();
+}
+
+class WithdrawFormTronPreviewTicked extends WithdrawFormEvent {
+  const WithdrawFormTronPreviewTicked();
+}
+
+class WithdrawFormTronPreviewRefreshRequested extends WithdrawFormEvent {
+  final bool isAutomatic;
+
+  const WithdrawFormTronPreviewRefreshRequested({this.isAutomatic = false});
 }
 
 class WithdrawFormCancelled extends WithdrawFormEvent {
@@ -67,6 +82,10 @@ class WithdrawFormIbcChannelChanged extends WithdrawFormEvent {
 
 class WithdrawFormSourcesLoadRequested extends WithdrawFormEvent {
   const WithdrawFormSourcesLoadRequested();
+}
+
+class WithdrawFormFeeOptionsRequested extends WithdrawFormEvent {
+  const WithdrawFormFeeOptionsRequested();
 }
 
 class WithdrawFormStepReverted extends WithdrawFormEvent {

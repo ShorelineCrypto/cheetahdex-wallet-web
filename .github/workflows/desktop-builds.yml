@@ -34,15 +34,19 @@ jobs:
             artifact_name: cheetahdex-wallet-linux
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        id: checkout
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Install Flutter and dependencies
+        id: install_flutter
         uses: ./.github/actions/flutter-deps
 
       # macOS setup
       - name: Setup macOS environment
+        id: setup_macos
         if: ${{ matrix.platform == 'macos' }}
         uses: ./.github/actions/releases/setup-macos
         with:
@@ -56,6 +60,7 @@ jobs:
 
       # Linux setup
       - name: Setup Linux environment
+        id: setup_linux
         if: ${{ matrix.platform == 'linux' }}
         uses: ./.github/actions/releases/setup-linux
         with:
@@ -64,6 +69,7 @@ jobs:
 
       # Windows setup
       - name: Setup Windows environment
+        id: setup_windows
         if: ${{ matrix.platform == 'windows' }}
         uses: ./.github/actions/releases/setup-windows
         with:
@@ -71,12 +77,16 @@ jobs:
           pfx-password: ${{ secrets.WINDOWS_PFX_PASSWORD }}
 
       - name: Fetch packages, generate assets, and build for ${{ matrix.platform }}
+        id: build
         env:
           GITHUB_API_PUBLIC_READONLY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Disable code signing for macOS PR builds
-          CODE_SIGNING_ALLOWED: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'NO' || '' }}
-          CODE_SIGNING_REQUIRED: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'NO' || '' }}
-          EXPANDED_CODE_SIGN_IDENTITY: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '-' || '' }}
+          # Flutter only forwards Xcode overrides with the FLUTTER_XCODE_ prefix.
+          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'NO' || '' }}
+          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'NO' || '' }}
+          FLUTTER_XCODE_CODE_SIGN_IDENTITY: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '' || '' }}
+          FLUTTER_XCODE_CODE_SIGN_STYLE: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'Manual' || '' }}
+          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '' || '' }}
+          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '' || '' }}
         uses: ./.github/actions/generate-assets
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,6 +106,7 @@ jobs:
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           path: ${{ matrix.artifact_path }}

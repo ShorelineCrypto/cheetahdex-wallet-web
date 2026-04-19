@@ -8,33 +8,34 @@ import 'package:web_dex/shared/screenshot/screenshot_sensitivity.dart';
 import 'package:web_dex/shared/widgets/password_visibility_control.dart';
 
 class TrezorDialogSelectWallet extends StatelessWidget {
-  const TrezorDialogSelectWallet({Key? key, required this.onComplete})
-    : super(key: key);
+  const TrezorDialogSelectWallet({super.key, required this.onComplete});
 
   final Function(String) onComplete;
 
   @override
   Widget build(BuildContext context) {
-    return ScreenshotSensitive(child: Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          LocaleKeys.selectWalletType.tr(),
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 18),
-        _TrezorStandardWallet(onTap: () => onComplete('')),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 6.0),
-          child: UiDivider(),
-        ),
-        _TrezorHiddenWallet(
-          onSubmit: (String passphrase) => onComplete(passphrase),
-        ),
-      ],
-    ));
+    return ScreenshotSensitive(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            LocaleKeys.selectWalletType.tr(),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 18),
+          _TrezorStandardWallet(onTap: () => onComplete('')),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 6.0),
+            child: UiDivider(),
+          ),
+          _TrezorHiddenWallet(
+            onSubmit: (String passphrase) => onComplete(passphrase),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -90,7 +91,7 @@ class _TrezorHiddenWalletState extends State<_TrezorHiddenWallet> {
           description: LocaleKeys.passphraseRequired.tr(),
           icon: Icons.lock_outline,
           isIconShown: _isSendAllowed,
-          onTap: _onSubmit,
+          onTap: _isSendAllowed ? _onSubmit : null,
         ),
         const SizedBox(height: 12),
         ConstrainedBox(
@@ -109,6 +110,7 @@ class _TrezorHiddenWalletState extends State<_TrezorHiddenWallet> {
         autofocus: true,
         hintText: LocaleKeys.passphrase.tr(),
         keyboardType: TextInputType.text,
+        validationMode: InputValidationMode.lazy,
         autofillHints: const [AutofillHints.password],
         obscureText: _isObscured,
         maxLength: passwordMaxLength,
@@ -158,7 +160,7 @@ class _TrezorWalletItem extends StatelessWidget {
   final String title;
   final String description;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool isIconShown;
 
   @override

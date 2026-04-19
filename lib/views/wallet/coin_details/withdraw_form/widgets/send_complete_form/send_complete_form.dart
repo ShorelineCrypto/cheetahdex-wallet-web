@@ -2,7 +2,6 @@ import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:komodo_ui/komodo_ui.dart';
 import 'package:web_dex/bloc/withdraw_form/withdraw_form_bloc.dart';
 import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
@@ -57,15 +56,17 @@ class SendCompleteForm extends StatelessWidget {
                           color: theme.custom.headerFloatBoxColor,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      SelectableText(
-                        '\$${state.usdAmountPrice ?? 0}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: theme.custom.headerFloatBoxColor,
+                      if (state.usdAmountPrice != null) ...[
+                        const SizedBox(height: 5),
+                        SelectableText(
+                          '\$${state.usdAmountPrice}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: theme.custom.headerFloatBoxColor,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   if (state.hasTransactionError)
@@ -75,7 +76,7 @@ class SendCompleteForm extends StatelessWidget {
             ),
             if (state.result?.txHash != null)
               _TransactionHash(
-                feeValue: feeValue!.formatTotal(),
+                feeValue: feeValue!.totalFee.toString(),
                 feeCoin: feeValue.coin,
                 txHash: state.result!.txHash,
                 usdFeePrice: state.usdFeePrice,
@@ -101,9 +102,7 @@ class _SendCompleteError extends StatelessWidget {
       child: Text(
         error.message,
         textAlign: TextAlign.left,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.error,
-        ),
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
       ),
     );
   }
@@ -134,7 +133,7 @@ class _TransactionHash extends StatelessWidget {
             title: '${LocaleKeys.fee.tr()}:',
             value:
                 '${truncateDecimal(feeValue, decimalRange)} ${Coin.normalizeAbbr(feeCoin)}',
-            usdPrice: usdFeePrice ?? 0,
+            usdPrice: usdFeePrice,
             isWarningShown: isFeePriceExpensive,
           ),
           const SizedBox(height: 21),
