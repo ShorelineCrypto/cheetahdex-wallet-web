@@ -4,11 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/app_config/app_config.dart';
-import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
+import 'package:web_dex/bloc/settings/settings_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
-import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/release_options.dart';
+import 'package:web_dex/shared/constants.dart';
+import 'package:web_dex/shared/utils/balance_utils.dart';
 import 'package:web_dex/shared/utils/extensions/sdk_extensions.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/views/common/header/actions/account_switcher.dart';
@@ -18,6 +19,13 @@ class MainLayoutTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hideBalances = context.select(
+      (SettingsBloc bloc) => bloc.state.hideBalances,
+    );
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isCompact = screenWidth < 1100;
+    final double horizontalPadding = isCompact ? 16 : 32;
+    final double leadingWidth = isCompact ? 160 : 200;
     return Container(
       decoration: BoxDecoration(
         border: Border(
@@ -30,9 +38,10 @@ class MainLayoutTopBar extends StatelessWidget {
         elevation: 0,
         leading: BlocBuilder<CoinsBloc, CoinsState>(
           builder: (context, state) {
-            final totalBalance = _getTotalBalance(
-              state.walletCoins.values,
-              context,
+            final totalBalance = computeWalletTotalUsd(
+              coins: state.walletCoins.values,
+              coinsState: state,
+              sdk: context.sdk,
             );
 
             if (totalBalance == null) {
@@ -40,44 +49,28 @@ class MainLayoutTopBar extends StatelessWidget {
             }
 
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: ActionTextButton(
                 text: LocaleKeys.balance.tr(),
-                secondaryText: '\$${formatAmt(totalBalance)}',
+                secondaryText: hideBalances
+                    ? '\$$maskedBalanceText'
+                    : '\$${formatAmt(totalBalance)}',
                 onTap: null,
               ),
             );
           },
         ),
-        leadingWidth: 200,
-        actions: _getHeaderActions(context),
+        leadingWidth: leadingWidth,
+        actions: _getHeaderActions(context, horizontalPadding),
         titleSpacing: 0,
       ),
     );
   }
 
-  double? _getTotalBalance(Iterable<Coin> coins, BuildContext context) {
-    bool hasAnyUsdBalance = coins.any(
-      (coin) => coin.usdBalance(context.sdk) != null,
-    );
-
-    if (!hasAnyUsdBalance) {
-      return null;
-    }
-
-    double total = coins.fold(
-      0,
-      (prev, coin) => prev + (coin.usdBalance(context.sdk) ?? 0),
-    );
-
-    if (total > 0.01) {
-      return total;
-    }
-
-    return total != 0 ? 0.01 : 0;
-  }
-
-  List<Widget> _getHeaderActions(BuildContext context) {
+  List<Widget> _getHeaderActions(
+    BuildContext context,
+    double horizontalPadding,
+  ) {
     final languageCodes = localeList.map((e) => e.languageCode).toList();
     final langCode2flags = {
       for (var loc in languageCodes)
@@ -86,7 +79,7 @@ class MainLayoutTopBar extends StatelessWidget {
 
     return [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [

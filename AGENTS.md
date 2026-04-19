@@ -33,7 +33,7 @@ Ensure you follow the existing architecture and style of the codebase. The codeb
 
 ### Cheetahdex Wallet
 
-This section is only relevant if you are working in the `komodo-wallet` repository:
+This section is only relevant if you are working in the `cheetahdex-wallet-web` repository:
 
 Detailed instructions for building and running the app can be found in `docs/BUILD_RUN_APP.md` and other files in the `docs/` directory. See `README.md` for an overview of available documentation.
 

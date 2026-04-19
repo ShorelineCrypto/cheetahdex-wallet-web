@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app_theme/app_theme.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +18,7 @@ import 'package:web_dex/bloc/coin_addresses/bloc/coin_addresses_bloc.dart';
 import 'package:web_dex/bloc/coin_addresses/bloc/coin_addresses_event.dart';
 import 'package:web_dex/bloc/coin_addresses/bloc/coin_addresses_state.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
+import 'package:web_dex/bloc/settings/settings_bloc.dart';
 import 'package:web_dex/bloc/taker_form/taker_bloc.dart';
 import 'package:web_dex/bloc/taker_form/taker_event.dart';
 import 'package:web_dex/bloc/trading_status/trading_status_bloc.dart';
@@ -25,6 +28,7 @@ import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/main_menu_value.dart';
 import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/router/state/routing_state.dart';
+import 'package:web_dex/shared/constants.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/widgets/coin_fiat_balance.dart';
 import 'package:web_dex/shared/widgets/segwit_icon.dart';
@@ -34,6 +38,7 @@ import 'package:web_dex/views/common/pages/page_layout.dart';
 import 'package:web_dex/views/wallet/coin_details/coin_details_info/charts/portfolio_growth_chart.dart';
 import 'package:web_dex/views/wallet/coin_details/coin_details_info/charts/portfolio_profit_loss_chart.dart';
 import 'package:web_dex/views/wallet/coin_details/coin_details_info/coin_addresses.dart';
+import 'package:web_dex/views/wallet/coin_details/coin_details_info/coin_details_balance_confirmation_controller.dart';
 import 'package:web_dex/views/wallet/coin_details/coin_details_info/coin_details_common_buttons.dart';
 import 'package:web_dex/views/wallet/coin_details/coin_details_info/coin_details_info_fiat.dart';
 import 'package:web_dex/views/wallet/coin_details/coin_page_type.dart';
@@ -57,6 +62,9 @@ class CoinDetailsInfo extends StatefulWidget {
 class _CoinDetailsInfoState extends State<CoinDetailsInfo>
     with SingleTickerProviderStateMixin {
   Transaction? _selectedTransaction;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _transactionsSectionKey = GlobalKey();
+  final GlobalKey _addressesSectionKey = GlobalKey();
 
   String? get _walletId =>
       RepositoryProvider.of<AuthBloc>(context).state.currentUser?.walletId.name;
@@ -131,6 +139,11 @@ class _CoinDetailsInfoState extends State<CoinDetailsInfo>
         selectedTransaction: _selectedTransaction,
         setPageType: widget.setPageType,
         setTransaction: _selectTransaction,
+        scrollController: _scrollController,
+        transactionsSectionKey: _transactionsSectionKey,
+        addressesSectionKey: _addressesSectionKey,
+        onShowTransactions: _scrollToTransactions,
+        onShowAddresses: _scrollToAddresses,
       );
     }
     return _DesktopContent(
@@ -138,6 +151,11 @@ class _CoinDetailsInfoState extends State<CoinDetailsInfo>
       selectedTransaction: _selectedTransaction,
       setPageType: widget.setPageType,
       setTransaction: _selectTransaction,
+      scrollController: _scrollController,
+      transactionsSectionKey: _transactionsSectionKey,
+      addressesSectionKey: _addressesSectionKey,
+      onShowTransactions: _scrollToTransactions,
+      onShowAddresses: _scrollToAddresses,
     );
   }
 
@@ -163,6 +181,25 @@ class _CoinDetailsInfoState extends State<CoinDetailsInfo>
     });
   }
 
+  Future<void> _scrollToSection(GlobalKey sectionKey) async {
+    final targetContext = sectionKey.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+    );
+  }
+
+  Future<void> _scrollToTransactions() =>
+      _scrollToSection(_transactionsSectionKey);
+
+  Future<void> _scrollToAddresses() => _scrollToSection(_addressesSectionKey);
+
   void _onBackButtonPressed() {
     if (_haveTransaction) {
       _selectTransaction(null);
@@ -181,6 +218,7 @@ class _CoinDetailsInfoState extends State<CoinDetailsInfo>
   @override
   void dispose() {
     _coinAddressesBloc.close().ignore();
+    _scrollController.dispose();
     super.dispose();
   }
 }
@@ -191,12 +229,22 @@ class _DesktopContent extends StatelessWidget {
     required this.selectedTransaction,
     required this.setPageType,
     required this.setTransaction,
+    required this.scrollController,
+    required this.transactionsSectionKey,
+    required this.addressesSectionKey,
+    required this.onShowTransactions,
+    required this.onShowAddresses,
   });
 
   final Coin coin;
   final Transaction? selectedTransaction;
   final void Function(CoinPageType) setPageType;
   final Function(Transaction?) setTransaction;
+  final ScrollController scrollController;
+  final GlobalKey transactionsSectionKey;
+  final GlobalKey addressesSectionKey;
+  final Future<void> Function() onShowTransactions;
+  final Future<void> Function() onShowAddresses;
 
   @override
   Widget build(BuildContext context) {
@@ -207,32 +255,55 @@ class _DesktopContent extends StatelessWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18.0),
       ),
-      child: CustomScrollView(
-        slivers: <Widget>[
-          if (selectedTransaction == null)
-            SliverToBoxAdapter(
-              child: _DesktopCoinDetails(coin: coin, setPageType: setPageType),
+      child: DexScrollbar(
+        scrollController: scrollController,
+        isMobile: isMobile,
+        child: CustomScrollView(
+          controller: scrollController,
+          slivers: <Widget>[
+            if (selectedTransaction == null)
+              SliverToBoxAdapter(
+                child: _DesktopCoinDetails(
+                  coin: coin,
+                  setPageType: setPageType,
+                  onShowTransactions: onShowTransactions,
+                  onShowAddresses: onShowAddresses,
+                ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            TransactionTable(
+              key: transactionsSectionKey,
+              coin: coin,
+              selectedTransaction: selectedTransaction,
+              setTransaction: setTransaction,
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-          if (selectedTransaction == null)
-            CoinAddresses(coin: coin, setPageType: setPageType),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-          TransactionTable(
-            coin: coin,
-            selectedTransaction: selectedTransaction,
-            setTransaction: setTransaction,
-          ),
-        ],
+            if (selectedTransaction == null) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              CoinAddresses(
+                key: addressesSectionKey,
+                coin: coin,
+                setPageType: setPageType,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class _DesktopCoinDetails extends StatelessWidget {
-  const _DesktopCoinDetails({required this.coin, required this.setPageType});
+  const _DesktopCoinDetails({
+    required this.coin,
+    required this.setPageType,
+    required this.onShowTransactions,
+    required this.onShowAddresses,
+  });
 
   final Coin coin;
   final void Function(CoinPageType) setPageType;
+  final Future<void> Function() onShowTransactions;
+  final Future<void> Function() onShowAddresses;
 
   @override
   Widget build(BuildContext context) {
@@ -272,6 +343,12 @@ class _DesktopCoinDetails extends StatelessWidget {
               coin: coin,
             ),
           ),
+          const Gap(12),
+          _SectionAnchorChips(
+            isMobile: false,
+            onShowTransactions: onShowTransactions,
+            onShowAddresses: onShowAddresses,
+          ),
           const Gap(16),
           _CoinDetailsMarketMetricsTabBar(coin: coin),
         ],
@@ -286,35 +363,57 @@ class _MobileContent extends StatelessWidget {
     required this.selectedTransaction,
     required this.setPageType,
     required this.setTransaction,
+    required this.scrollController,
+    required this.transactionsSectionKey,
+    required this.addressesSectionKey,
+    required this.onShowTransactions,
+    required this.onShowAddresses,
   });
 
   final Coin coin;
   final Transaction? selectedTransaction;
   final void Function(CoinPageType) setPageType;
   final Function(Transaction?) setTransaction;
+  final ScrollController scrollController;
+  final GlobalKey transactionsSectionKey;
+  final GlobalKey addressesSectionKey;
+  final Future<void> Function() onShowTransactions;
+  final Future<void> Function() onShowAddresses;
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: <Widget>[
-        if (selectedTransaction == null)
-          SliverToBoxAdapter(
-            child: _CoinDetailsInfoHeader(
+    return DexScrollbar(
+      scrollController: scrollController,
+      isMobile: isMobile,
+      child: CustomScrollView(
+        controller: scrollController,
+        slivers: <Widget>[
+          if (selectedTransaction == null)
+            SliverToBoxAdapter(
+              child: _CoinDetailsInfoHeader(
+                coin: coin,
+                setPageType: setPageType,
+                context: context,
+                onShowTransactions: onShowTransactions,
+                onShowAddresses: onShowAddresses,
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          if (selectedTransaction == null)
+            CoinAddresses(
+              key: addressesSectionKey,
               coin: coin,
               setPageType: setPageType,
-              context: context,
             ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          TransactionTable(
+            key: transactionsSectionKey,
+            coin: coin,
+            selectedTransaction: selectedTransaction,
+            setTransaction: setTransaction,
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
-        if (selectedTransaction == null)
-          CoinAddresses(coin: coin, setPageType: setPageType),
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
-        TransactionTable(
-          coin: coin,
-          selectedTransaction: selectedTransaction,
-          setTransaction: setTransaction,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -324,11 +423,15 @@ class _CoinDetailsInfoHeader extends StatelessWidget {
     required this.coin,
     required this.setPageType,
     required this.context,
+    required this.onShowTransactions,
+    required this.onShowAddresses,
   });
 
   final Coin coin;
   final void Function(CoinPageType p1) setPageType;
   final BuildContext context;
+  final Future<void> Function() onShowTransactions;
+  final Future<void> Function() onShowAddresses;
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +466,59 @@ class _CoinDetailsInfoHeader extends StatelessWidget {
               coin: coin,
             ),
           ),
+          _SectionAnchorChips(
+            isMobile: true,
+            onShowTransactions: onShowTransactions,
+            onShowAddresses: onShowAddresses,
+          ),
+          const SizedBox(height: 12),
           _CoinDetailsMarketMetricsTabBar(coin: coin),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionAnchorChips extends StatelessWidget {
+  const _SectionAnchorChips({
+    required this.isMobile,
+    required this.onShowTransactions,
+    required this.onShowAddresses,
+  });
+
+  final bool isMobile;
+  final Future<void> Function() onShowTransactions;
+  final Future<void> Function() onShowAddresses;
+
+  @override
+  Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+    final chipBackground = themeData.colorScheme.surfaceContainerHighest;
+    final chipLabelStyle = themeData.textTheme.labelMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+
+    return Align(
+      alignment: isMobile ? Alignment.center : Alignment.centerLeft,
+      child: Wrap(
+        alignment: isMobile ? WrapAlignment.center : WrapAlignment.start,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          ActionChip(
+            avatar: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: Text(LocaleKeys.transactions.tr(), style: chipLabelStyle),
+            backgroundColor: chipBackground,
+            side: BorderSide.none,
+            onPressed: onShowTransactions,
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+            label: Text(LocaleKeys.addresses.tr(), style: chipLabelStyle),
+            backgroundColor: chipBackground,
+            side: BorderSide.none,
+            onPressed: onShowAddresses,
+          ),
         ],
       ),
     );
@@ -505,20 +660,20 @@ class _CoinDetailsMarketMetricsTabBarState
           ),
         ),
         SizedBox(
-          height: 340,
+          height: isMobile ? 340 : 260,
           child: TabBarView(
             controller: _tabController,
             children: [
               if (isPortfolioGrowthSupported)
                 SizedBox(
                   width: double.infinity,
-                  height: 340,
+                  height: isMobile ? 340 : 260,
                   child: PortfolioGrowthChart(initialCoins: [widget.coin]),
                 ),
               if (isProfitLossSupported)
                 SizedBox(
                   width: double.infinity,
-                  height: 340,
+                  height: isMobile ? 340 : 260,
                   child: PortfolioProfitLossChart(initialCoins: [widget.coin]),
                 ),
             ],
@@ -529,15 +684,81 @@ class _CoinDetailsMarketMetricsTabBarState
   }
 }
 
-class _Balance extends StatelessWidget {
+class _Balance extends StatefulWidget {
   const _Balance({required this.coin});
   final Coin coin;
 
   @override
+  State<_Balance> createState() => _BalanceState();
+}
+
+class CoinDetailsBalanceContent extends StatelessWidget {
+  const CoinDetailsBalanceContent({
+    required this.coin,
+    required this.hideBalances,
+    required this.isConfirmed,
+    required this.latestBalance,
+    this.fiatBalance,
+    super.key,
+  });
+
+  final Coin coin;
+  final bool hideBalances;
+  final bool isConfirmed;
+  final BalanceInfo? latestBalance;
+  final Widget? fiatBalance;
+
+  Widget _buildGhostValue(ThemeData themeData) {
+    final style = themeData.textTheme.titleMedium?.copyWith(
+      fontSize: isMobile ? 25 : 22,
+      fontWeight: FontWeight.w700,
+      color: theme.custom.headerFloatBoxColor,
+      height: 1.1,
+    );
+
+    return Row(
+      mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisAlignment: isMobile
+          ? MainAxisAlignment.center
+          : MainAxisAlignment.start,
+      children: [
+        Container(
+          key: const Key('coin-details-balance'),
+          width: isMobile ? 120 : 132,
+          height: isMobile ? 30 : 24,
+          decoration: BoxDecoration(
+            color: (style?.color ?? themeData.colorScheme.onSurface).withValues(
+              alpha: 0.22,
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          Coin.normalizeAbbr(coin.abbr),
+          style: themeData.textTheme.titleSmall!.copyWith(
+            fontSize: isMobile ? 25 : 20,
+            fontWeight: FontWeight.w500,
+            color: theme.custom.headerFloatBoxColor.withValues(alpha: 0.75),
+            height: 1.1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final ThemeData themeData = Theme.of(context);
-    final balance = coin.balance(context.sdk);
-    final value = balance == null ? null : doubleToString(balance);
+    final themeData = Theme.of(context);
+    final showGhost = !hideBalances && !isConfirmed;
+    final balance = latestBalance?.spendable.toDouble();
+    final value = hideBalances
+        ? maskedBalanceText
+        : showGhost
+        ? ''
+        : balance == null
+        ? kBalancePlaceholder
+        : doubleToString(balance);
 
     return Column(
       crossAxisAlignment: isMobile
@@ -557,40 +778,113 @@ class _Balance extends StatelessWidget {
             ),
           ),
         Flexible(
-          child: Row(
-            mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
-            mainAxisAlignment: isMobile
-                ? MainAxisAlignment.center
-                : MainAxisAlignment.start,
-            children: [
-              Flexible(
-                child: AutoScrollText(
-                  key: const Key('coin-details-balance'),
-                  text: value ?? '',
-                  isSelectable: true,
-                  style: themeData.textTheme.titleMedium!.copyWith(
-                    fontSize: isMobile ? 25 : 22,
-                    fontWeight: FontWeight.w700,
-                    color: theme.custom.headerFloatBoxColor,
-                    height: 1.1,
-                  ),
+          child: showGhost
+              ? _buildGhostValue(themeData)
+              : Row(
+                  mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
+                  mainAxisAlignment: isMobile
+                      ? MainAxisAlignment.center
+                      : MainAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      child: AutoScrollText(
+                        key: const Key('coin-details-balance'),
+                        text: value,
+                        isSelectable: true,
+                        style: themeData.textTheme.titleMedium!.copyWith(
+                          fontSize: isMobile ? 25 : 22,
+                          fontWeight: FontWeight.w700,
+                          color: theme.custom.headerFloatBoxColor,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      Coin.normalizeAbbr(coin.abbr),
+                      style: themeData.textTheme.titleSmall!.copyWith(
+                        fontSize: isMobile ? 25 : 20,
+                        fontWeight: FontWeight.w500,
+                        color: theme.custom.headerFloatBoxColor,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                Coin.normalizeAbbr(coin.abbr),
-                style: themeData.textTheme.titleSmall!.copyWith(
-                  fontSize: isMobile ? 25 : 20,
-                  fontWeight: FontWeight.w500,
-                  color: theme.custom.headerFloatBoxColor,
-                  height: 1.1,
-                ),
-              ),
-            ],
-          ),
         ),
-        if (!isMobile) _FiatBalance(coin: coin),
+        if (!isMobile && !showGhost) fiatBalance ?? _FiatBalance(coin: coin),
       ],
+    );
+  }
+}
+
+class _BalanceState extends State<_Balance> {
+  static const int _maxStartupRetries = 2;
+
+  late CoinDetailsBalanceConfirmationController _confirmationController;
+  StreamSubscription<BalanceInfo>? _balanceSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initBindings();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Balance oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.coin.id != widget.coin.id) {
+      _tearDownBindings();
+      _initBindings();
+    }
+  }
+
+  void _initBindings() {
+    final sdk = context.sdk;
+    _confirmationController = CoinDetailsBalanceConfirmationController(
+      initialBalance: sdk.balances.lastKnown(widget.coin.id),
+      fetchConfirmedBalance: () => sdk.balances.getBalance(widget.coin.id),
+      maxStartupRetries: _maxStartupRetries,
+    );
+
+    _balanceSubscription = sdk.balances
+        .watchBalance(widget.coin.id)
+        .listen(
+          _confirmationController.onStreamBalance,
+          onError: (Object _, StackTrace __) {
+            unawaited(_confirmationController.onStartupStreamError());
+          },
+        );
+
+    unawaited(_confirmationController.bootstrap());
+  }
+
+  void _tearDownBindings() {
+    _balanceSubscription?.cancel();
+    _balanceSubscription = null;
+    _confirmationController.dispose();
+  }
+
+  @override
+  void dispose() {
+    _tearDownBindings();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hideBalances = context.select(
+      (SettingsBloc bloc) => bloc.state.hideBalances,
+    );
+
+    return ListenableBuilder(
+      listenable: _confirmationController,
+      builder: (context, _) => CoinDetailsBalanceContent(
+        coin: widget.coin,
+        hideBalances: hideBalances,
+        isConfirmed: _confirmationController.isConfirmed,
+        latestBalance: _confirmationController.latestBalance,
+      ),
     );
   }
 }

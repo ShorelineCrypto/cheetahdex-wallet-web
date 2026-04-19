@@ -12,19 +12,22 @@ import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/widgets/copied_text.dart';
-import 'package:web_dex/views/wallet/common/address_copy_button.dart';
 
 class TransactionDetails extends StatelessWidget {
   const TransactionDetails({
-    Key? key,
     required this.transaction,
     required this.onClose,
     required this.coin,
-  }) : super(key: key);
+    this.usdPriceResolver,
+    this.onLaunchExplorer,
+    super.key,
+  });
 
   final Transaction transaction;
   final void Function() onClose;
   final Coin coin;
+  final double? Function(num amount, String coinAbbr)? usdPriceResolver;
+  final void Function(String url)? onLaunchExplorer;
 
   @override
   Widget build(BuildContext context) {
@@ -96,13 +99,13 @@ class TransactionDetails extends StatelessWidget {
                     _buildSimpleData(
                       context,
                       title: LocaleKeys.confirmations.tr(),
-                      value: transaction.confirmations.toString(),
+                      value: _confirmationsLabel(context),
                       hasBackground: true,
                     ),
                     _buildSimpleData(
                       context,
                       title: LocaleKeys.blockHeight.tr(),
-                      value: transaction.blockHeight.toString(),
+                      value: _blockHeightLabel(),
                     ),
                     _buildSimpleData(
                       context,
@@ -140,77 +143,38 @@ class TransactionDetails extends StatelessWidget {
     );
   }
 
-  Widget _buildAddress(
-    BuildContext context, {
-    required String title,
-    required String address,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Title with fixed flex
-          Expanded(
-            flex: 2,
-            child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(fontSize: 14),
-            ),
-          ),
-          // Address and copy button
-          Expanded(
-            flex: 5,
-            child: Row(
-              children: [
-                Expanded(
-                  child: AutoScrollText(
-                    text: address,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AddressCopyButton(address: address),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _confirmationsLabel(BuildContext context) {
+    final confirmations = transaction.confirmations;
+    if (confirmations > 0) {
+      return confirmations.toString();
+    }
+
+    if (transaction.blockHeight > 0) {
+      return '0';
+    }
+
+    return LocaleKeys.inProgress.tr();
   }
 
-  Widget _buildAddresses(bool isMobile, BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAddress(
-            context,
-            title: LocaleKeys.from.tr(),
-            address: transaction.from.first,
-          ),
-          _buildAddress(
-            context,
-            title: LocaleKeys.to.tr(),
-            address: transaction.to.first,
-          ),
-        ],
-      ),
-    );
+  String _blockHeightLabel() {
+    if (transaction.blockHeight > 0) {
+      return transaction.blockHeight.toString();
+    }
+    return LocaleKeys.unknown.tr();
   }
 
   Widget _buildBalanceChanges(BuildContext context) {
     final String formatted = formatDexAmt(transaction.amount.toDouble().abs());
     final String sign = transaction.amount.toDouble() > 0 ? '+' : '-';
-    final coinsBloc = RepositoryProvider.of<CoinsRepo>(context);
-    final double? usd = coinsBloc.getUsdPriceByAmount(
-      formatted,
-      transaction.assetId.id,
-    );
+    final double? usd =
+        usdPriceResolver?.call(
+          transaction.amount.toDouble().abs(),
+          transaction.assetId.id,
+        ) ??
+        RepositoryProvider.of<CoinsRepo>(context).getUsdPriceForAmount(
+          transaction.amount.toDouble().abs(),
+          transaction.assetId.id,
+        );
     final String formattedUsd = formatAmt(usd ?? 0);
     final String value =
         '$sign $formatted ${Coin.normalizeAbbr(transaction.assetId.id)} (\$$formattedUsd)';
@@ -241,7 +205,12 @@ class TransactionDetails extends StatelessWidget {
             color: theme.custom.defaultGradientButtonTextColor,
           ),
           onPressed: () {
-            launchURLString(getTxExplorerUrl(coin, transaction.txHash ?? ''));
+            final url = getTxExplorerUrl(coin, transaction.txHash ?? '');
+            if (onLaunchExplorer != null) {
+              onLaunchExplorer!(url);
+              return;
+            }
+            launchURLString(url);
           },
           text: LocaleKeys.viewOnExplorer.tr(),
         ),
@@ -262,18 +231,33 @@ class TransactionDetails extends StatelessWidget {
   }
 
   Widget _buildFee(BuildContext context) {
-    final coinsRepository = RepositoryProvider.of<CoinsRepo>(context);
-
-    final String formattedFee = transaction.fee?.formatTotal() ?? '';
-    final double? usd = coinsRepository.getUsdPriceByAmount(
-      formattedFee,
-      _feeCoin,
-    );
-    final String formattedUsd = formatAmt(usd ?? 0);
-
     final String title = LocaleKeys.fees.tr();
-    final String value =
-        '- ${Coin.normalizeAbbr(_feeCoin)} $formattedFee (\$$formattedUsd)';
+
+    final String value;
+    final TextStyle? valueStyle;
+
+    if (transaction.fee == null) {
+      value = '\u2014';
+      valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      );
+    } else {
+      final fee = transaction.fee!;
+      final String feeAmount = formatDexAmt(fee.totalFee.toDouble());
+      final double? usd =
+          usdPriceResolver?.call(fee.totalFee.toDouble(), _feeCoin) ??
+          RepositoryProvider.of<CoinsRepo>(
+            context,
+          ).getUsdPriceForAmount(fee.totalFee.toDouble(), _feeCoin);
+      final String formattedUsd = formatAmt(usd ?? 0);
+      value = '- ${Coin.normalizeAbbr(_feeCoin)} $feeAmount (\$$formattedUsd)';
+      valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: theme.custom.decreaseColor,
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 15.0),
@@ -295,14 +279,7 @@ class TransactionDetails extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(maxHeight: 35),
               alignment: Alignment.centerLeft,
-              child: SelectableText(
-                value,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: theme.custom.decreaseColor,
-                ),
-              ),
+              child: SelectableText(value, style: valueStyle),
             ),
           ),
         ],

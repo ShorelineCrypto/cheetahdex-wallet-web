@@ -19,21 +19,31 @@ const String storedSettingsKeyV2 = 'komodo_wallet_settings_v2';
 const String storedAnalyticsSettingsKey = 'analytics_settings';
 const String storedMarketMakerSettingsKey = 'market_maker_settings';
 const String lastLoggedInWalletKey = 'last_logged_in_wallet';
+const String hdWalletModePreferenceKey = 'wallet_hd_mode_preference';
 
 // anchor: protocols support
 const String ercTxHistoryUrl = 'https://etherscan.gleec.com/api';
-const String txByHashUrl = '$ercTxHistoryUrl/v1/transactions_by_hash';
 
-const String updateCheckerEndpoint = 'https://defistats.gleec.com/api/v3/dex_version';
+const String updateCheckerEndpoint =
+    'https://defistats.gleec.com/api/v3/dex_version';
+const String txByHashUrl = '$ercTxHistoryUrl/v2/transactions_by_hash';
+
 const int feedbackMaxLength = 1000;
 const int contactDetailsMaxLength = 100;
 // Maximum allowed length for passwords across the app
 // TODO: Mirror this limit in the SDK validation and any backend API constraints
 const int passwordMaxLength = 128;
+const String maskedBalanceText = '****';
+
+/// Shown when balance or fiat value is unavailable (e.g. still loading).
+const String kBalancePlaceholder = '--';
 final RegExp discordUsernameRegex = RegExp(r'^[a-zA-Z0-9._]{2,32}$');
 final RegExp telegramUsernameRegex = RegExp(r'^[a-zA-Z0-9_]{5,32}$');
 final RegExp matrixIdRegex = RegExp(
   r'^@[a-zA-Z0-9._=-]+:[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+);
+final Uri pricesUrlV3 = Uri.parse(
+  'https://prices.gleec.com/api/v2/tickers?expire_at=60',
 );
 
 const int millisecondsIn24H = 86400000;
@@ -62,7 +72,7 @@ const String matomoSiteId = String.fromEnvironment(
 );
 
 /// Optional: Custom dimension id in Matomo used to store platform name
-/// Provide via --dart-define=MATOMO_PLATFORM_DIMENSION_ID=<number>
+/// Provide via --dart-define=MATOMO_PLATFORM_DIMENSION_ID=123
 const int? matomoPlatformDimensionId =
     int.fromEnvironment('MATOMO_PLATFORM_DIMENSION_ID', defaultValue: -1) == -1
     ? null
@@ -70,7 +80,6 @@ const int? matomoPlatformDimensionId =
 const String moralisProxyUrl = 'https://moralis.gleec.com';
 const String nftAntiSpamUrl = 'https://nft-antispam.gleec.com';
 
-const String geoBlockerApiUrl =
-    'https://gleec-wallet-bouncer.gleec.com/v1/';
+const String geoBlockerApiUrl = 'https://gleec-wallet-bouncer.gleec.com/v1';
 const String tradingBlacklistUrl =
     'https://defistats.gleec.com/api/v3/utils/blacklist';

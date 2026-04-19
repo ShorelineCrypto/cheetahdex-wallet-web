@@ -15,6 +15,7 @@ import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/text_error.dart';
 import 'package:web_dex/shared/constants.dart';
+import 'package:web_dex/shared/utils/kdf_error_display.dart';
 
 part 'profit_loss_event.dart';
 part 'profit_loss_state.dart';
@@ -33,7 +34,10 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
       _onLoadPortfolioProfitLoss,
       transformer: restartable(),
     );
-    on<ProfitLossPortfolioPeriodChanged>(_onPortfolioPeriodChanged);
+    on<ProfitLossPortfolioPeriodChanged>(
+      _onPortfolioPeriodChanged,
+      transformer: restartable(),
+    );
     on<ProfitLossPortfolioChartClearRequested>(_onClearPortfolioProfitLoss);
   }
 
@@ -58,8 +62,6 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
       final supportedCoins = await event.coins.filterSupportedCoins();
       final filteredEventCoins = event.coins.withoutTestCoins();
       final initialActiveCoins = await supportedCoins.removeInactiveCoins(_sdk);
-      // Charts for individual coins (coin details) are parsed here as well,
-      // and should be hidden if not supported.
       if (supportedCoins.isEmpty && filteredEventCoins.length <= 1) {
         return emit(
           PortfolioProfitLossChartUnsupported(
@@ -75,8 +77,6 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
       ).then(emit.call).catchError((Object error, StackTrace stackTrace) {
         const errorMessage = 'Failed to load CACHED portfolio profit/loss';
         _log.warning(errorMessage, error, stackTrace);
-        // ignore cached errors, as the periodic refresh attempts should recover
-        // at the cost of a longer first loading time.
       });
 
       // Fetch the un-cached version of the chart to update the cache.
@@ -94,10 +94,6 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
           useCache: false,
         ).then(emit.call).catchError((Object e, StackTrace s) {
           _log.severe('Failed to load uncached profit/loss chart', e, s);
-          // Ignore un-cached errors, as a transaction loading exception should not
-          // make the graph disappear with a load failure emit, as the cached data
-          // is already displayed. The periodic updates will still try to fetch the
-          // data and update the graph.
         });
       }
     } catch (error, stackTrace) {
@@ -237,6 +233,19 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
   }
 
   /// Run periodic updates with exponential backoff strategy
+  bool _isStalePeriodicUpdate(Duration selectedPeriod, {String? stage}) {
+    if (state.selectedPeriod == selectedPeriod) {
+      return false;
+    }
+
+    final stageInfo = stage == null ? '' : ' ($stage)';
+    _log.fine(
+      'Skipping stale profit/loss periodic update$stageInfo: '
+      '$selectedPeriod -> ${state.selectedPeriod}.',
+    );
+    return true;
+  }
+
   Future<void> _runPeriodicUpdates(
     ProfitLossPortfolioChartLoadRequested event,
     Emitter<ProfitLossState> emit,
@@ -244,6 +253,9 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
     while (true) {
       if (isClosed || emit.isDone) {
         _log.fine('Stopping profit/loss periodic updates: bloc closed.');
+        break;
+      }
+      if (_isStalePeriodicUpdate(event.selectedPeriod, stage: 'loop-start')) {
         break;
       }
       try {
@@ -255,20 +267,35 @@ class ProfitLossBloc extends Bloc<ProfitLossEvent, ProfitLossState> {
           );
           break;
         }
+        if (_isStalePeriodicUpdate(event.selectedPeriod, stage: 'post-delay')) {
+          break;
+        }
 
         final supportedCoins = await event.coins.filterSupportedCoins();
         final activeCoins = await supportedCoins.removeInactiveCoins(_sdk);
+        if (_isStalePeriodicUpdate(event.selectedPeriod, stage: 'pre-fetch')) {
+          break;
+        }
         final updatedChartState = await _getProfitLossChart(
           event,
           activeCoins,
           useCache: false,
         );
+        if (_isStalePeriodicUpdate(event.selectedPeriod, stage: 'pre-emit')) {
+          break;
+        }
         emit(updatedChartState);
       } catch (error, stackTrace) {
+        if (_isStalePeriodicUpdate(event.selectedPeriod, stage: 'error')) {
+          break;
+        }
         _log.shout('Failed to load portfolio profit/loss', error, stackTrace);
         emit(
           ProfitLossLoadFailure(
-            error: TextError(error: 'Failed to load portfolio profit/loss'),
+            error: TextError(
+              error: formatKdfUserFacingError(error),
+              technicalDetails: extractKdfTechnicalDetails(error),
+            ),
             selectedPeriod: event.selectedPeriod,
           ),
         );

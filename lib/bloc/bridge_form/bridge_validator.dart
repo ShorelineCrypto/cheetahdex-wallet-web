@@ -16,6 +16,7 @@ import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/data_from_service.dart';
 import 'package:web_dex/model/dex_form_error.dart';
 import 'package:web_dex/model/text_error.dart';
+import 'package:web_dex/shared/utils/kdf_error_display.dart';
 import 'package:web_dex/model/trade_preimage.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
@@ -87,6 +88,10 @@ class BridgeValidator {
       );
     } else if (error is TradePreimageTransportError) {
       return DexFormError(error: LocaleKeys.notEnoughBalanceForGasError.tr());
+    } else if (error is TradePreimageNoSuchCoinError) {
+      return DexFormError(
+        error: LocaleKeys.connectionToServersFailing.tr(args: [error.coin]),
+      );
     } else if (error is TradePreimageVolumeTooLowError) {
       return DexFormError(
         error: LocaleKeys.lowTradeVolumeError.tr(
@@ -135,7 +140,10 @@ class BridgeValidator {
         isError: true,
       );
       return DataFromService(
-        error: TextError(error: 'Failed to request trade preimage'),
+        error: TextError(
+          error: formatKdfUserFacingError(e),
+          technicalDetails: extractKdfTechnicalDetails(e),
+        ),
       );
     }
   }

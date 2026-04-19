@@ -3,6 +3,7 @@ import 'package:app_theme/src/light/theme_custom_light.dart';
 import 'package:flutter/material.dart';
 import 'package:komodo_ui/komodo_ui.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
+import 'package:web_dex/shared/constants.dart';
 
 /// Balance Summary Widget for mobile view
 class BalanceSummaryWidget extends StatelessWidget {
@@ -11,6 +12,8 @@ class BalanceSummaryWidget extends StatelessWidget {
   final double? changePercentage;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final bool hideBalances;
+  final VoidCallback? onToggleHideBalances;
 
   const BalanceSummaryWidget({
     super.key,
@@ -19,6 +22,8 @@ class BalanceSummaryWidget extends StatelessWidget {
     required this.changePercentage,
     this.onTap,
     this.onLongPress,
+    this.hideBalances = false,
+    this.onToggleHideBalances,
   });
 
   @override
@@ -36,29 +41,54 @@ class BalanceSummaryWidget extends StatelessWidget {
           gradient: StatisticCard.containerGradient(theme),
           borderRadius: BorderRadius.circular(16),
         ),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            // Total balance or placeholder
-            totalBalance != null
-                ? Text(
-                    '\$${NumberFormat("#,##0.00").format(totalBalance!)}',
-                    style: theme.textTheme.headlineSmall,
-                  )
-                : _BalancePlaceholder(),
-            const SizedBox(height: 12),
-            // Change indicator using TrendPercentageText or placeholder
-            totalBalance != null
-                ? TrendPercentageText(
-                    percentage: changePercentage,
-                    upColor: themeCustom.increaseColor,
-                    downColor: themeCustom.decreaseColor,
-                    value: changeAmount,
-                    valueFormatter: (value) =>
-                        NumberFormat.currency(symbol: '\$').format(value),
-                  )
-                : _ChangePlaceholder(),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Total balance or placeholder
+                totalBalance != null
+                    ? Text(
+                        hideBalances
+                            ? '\$${maskedBalanceText}'
+                            : '\$${NumberFormat("#,##0.00").format(totalBalance!)}',
+                        style: theme.textTheme.headlineSmall,
+                      )
+                    : _BalancePlaceholder(),
+                const SizedBox(height: 12),
+                // Change indicator using TrendPercentageText or placeholder
+                totalBalance != null && !hideBalances
+                    ? TrendPercentageText(
+                        percentage: changePercentage,
+                        upColor: themeCustom.increaseColor,
+                        downColor: themeCustom.decreaseColor,
+                        value: changeAmount,
+                        valueFormatter: (value) =>
+                            NumberFormat.currency(symbol: '\$').format(value),
+                      )
+                    : _ChangePlaceholder(),
+              ],
+            ),
+            if (onToggleHideBalances != null)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  key: const Key('balance-summary-privacy-toggle'),
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: Icon(
+                    hideBalances
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  onPressed: onToggleHideBalances,
+                ),
+              ),
           ],
         ),
       ),

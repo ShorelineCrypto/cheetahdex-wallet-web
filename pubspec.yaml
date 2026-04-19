@@ -1,5 +1,5 @@
 name: web_dex
-description: Komodo Wallet
+description: Cheetahdex Wallet
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
@@ -15,11 +15,11 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 0.9.3+1
+version: 0.9.4+0
 
 environment:
   sdk: ">=3.8.1 <4.0.0"
-  flutter: ">=3.35.3 <4.0.0"
+  flutter: ">=3.41.4 <4.0.0"
 
 workspace:
   - packages/komodo_ui_kit
@@ -46,12 +46,12 @@ dependencies:
   komodo_persistence_layer:
     path: packages/komodo_persistence_layer
 
-  ## ---- KomodoPlatform pub.dev packages (First-party)
+  ## ---- GLEECBTC pub.dev packages (First-party)
 
   komodo_cex_market_data:
     path: sdk/packages/komodo_cex_market_data # Option 1: Local path via sdk submodule (pinned). See docs/SDK_SUBMODULE_MANAGEMENT.md
     # git: # Option 2: Git dependency
-    #   url: https://github.com/KomodoPlatform/komodo-defi-sdk-flutter.git
+    #   url: https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter.git
     #   path: packages/komodo_cex_market_data
     #   ref: dev
     # ^0.0.3+1 # Option 3: Pub.dev dependency
@@ -59,21 +59,21 @@ dependencies:
   dragon_logs:
     path: sdk/packages/dragon_logs # Option 1: Local path via sdk submodule (pinned). See docs/SDK_SUBMODULE_MANAGEMENT.md
     # git: # Option 2: Git dependency
-    #   url: https://github.com/KomodoPlatform/komodo-defi-sdk-flutter.git
+    #   url: https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter.git
     #   path: packages/dragon_logs
     #   ref: dev
     # ^2.0.0 # Option 3: Pub.dev dependency
 
-  ## ---- Dart.dev, Flutter.dev
+  ## ---- Dart.dev, Flutter.dev (Official Packages)
   args: ^2.7.0 # dart.dev
-  flutter_markdown: ^0.7.7 # flutter.dev
+  flutter_markdown: ^0.7.7+1 # flutter.dev
   http: 1.4.0 # dart.dev
   intl: 0.20.2 # dart.dev
-  js: ">=0.6.7 <=0.7.2" # dart.dev
+  web: ^1.1.1 # dart.dev
   url_launcher: 6.3.1 # flutter.dev
   crypto: 3.0.6 # dart.dev
   cross_file: 0.3.4+2 # flutter.dev
-  video_player: ^2.9.5 # flutter.dev
+  video_player: ^2.11.1 # flutter.dev
   logging: 1.3.0
   mutex: ^3.1.0
 
@@ -82,7 +82,7 @@ dependencies:
 
   ## ---- google.com
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106
   window_size:
     git:
       url: https://github.com/KomodoPlatform/flutter-desktop-embedding
@@ -93,49 +93,46 @@ dependencies:
 
   # Upgraded Firebase, needs secure code review
 
-  firebase_analytics: ^11.4.5
-  firebase_core: ^3.13.0
+  firebase_analytics: ^11.6.0
+  firebase_core: ^3.15.2
 
   ## ---- Fluttercommunity.dev
 
   # does not require review, since hosted and git versions are the same
   equatable: 2.0.7 # sdk depends on hosted version, and not from git
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106 (Outdated)
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
   package_info_plus: 8.3.0
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106 (Outdated)
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
   share_plus: 11.1.0
 
   ## ---- 3d party
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106 (Outdated)
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
   encrypt: 5.0.3
 
   flutter_svg: 2.0.17
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106 (Outdated)
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
   qr_flutter: 4.1.0
 
-  easy_localization: 3.0.7+1 # last reviewed 3.0.2 via https://github.com/KomodoPlatform/komodo-wallet/pull/1106
+  easy_localization: 3.0.7+1 # last reviewed 3.0.2 via https://github.com/GLEECBTC/gleec-wallet/pull/1106
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106 (Outdated)
-  universal_html: 2.2.4
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
+  hive_ce: ^2.19.3 # Community-maintained Hive package with WASM support
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106
-  hive: ^2.2.3 # Changed from git to pub.dev because git dependencies are not allowed in published packages
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
+  hive_ce_flutter: ^2.3.4 # Flutter bindings for hive_ce
 
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106
-  hive_flutter: ^1.1.0 # Changed from git to pub.dev because git dependencies are not allowed in published packages
-
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/1106 (Outdated)
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/1106 (Outdated)
   badges: 3.1.2
 
   flutter_slidable: 4.0.0
   cupertino_icons: ^1.0.8
 
   # Embedded web view
-  # Approved via https://github.com/KomodoPlatform/komodo-wallet/pull/3
+  # Approved via https://github.com/GLEECBTC/gleec-wallet/pull/3
   flutter_inappwebview: 6.1.5 # Android, iOS, macOS, Web (currently broke, open issue)
 
   # Newly added, not yet reviewed
@@ -145,27 +142,27 @@ dependencies:
   dragon_charts_flutter:
     path: sdk/packages/dragon_charts_flutter # Option 1: Local path via sdk submodule (pinned). See docs/SDK_SUBMODULE_MANAGEMENT.md
     # git: # Option 2: Git dependency
-    #   url: https://github.com/KomodoPlatform/komodo-defi-sdk-flutter.git
+    #   url: https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter.git
     #   path: packages/dragon_charts_flutter
     #   ref: dev
     # ^0.1.1-dev.3 # Option 3: Pub.dev dependency
 
   bloc_concurrency: 0.3.0
-  file_picker: ^10.3.2
+  file_picker: ^10.3.10
 
   # TODO: review required - SDK integration
   path_provider: 2.1.5 # flutter.dev
-  shared_preferences: ^2.5.3 # flutter.dev
+  shared_preferences: ^2.5.4 # flutter.dev
   decimal: 3.2.1 # transitive dependency that is required to fix breaking changes in rational package
   rational: 2.2.3 # sdk depends on decimal ^3.0.2, which depends on rational ^2.0.0
   uuid: 4.5.1 # sdk depends on this version
-  flutter_bloc: ^9.1.0 # sdk depends on this version, and hosted instead of git reference
-  get_it: ^8.0.3 # sdk depends on this version, and hosted instead of git reference
+  flutter_bloc: ^9.1.1 # sdk depends on this version, and hosted instead of git reference
+  get_it: ^8.3.0 # sdk depends on this version, and hosted instead of git reference
 
   komodo_defi_sdk:
     path: sdk/packages/komodo_defi_sdk # Option 1: Local path via sdk submodule (pinned). See docs/SDK_SUBMODULE_MANAGEMENT.md
     # git: # Option 2: Git dependency
-    #   url: https://github.com/KomodoPlatform/komodo-defi-sdk-flutter.git
+    #   url: https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter.git
     #   path: packages/komodo_defi_sdk
     #   ref: dev
     # ^0.4.0+3 # Option 3: Pub.dev dependency
@@ -173,7 +170,7 @@ dependencies:
   komodo_defi_types:
     path: sdk/packages/komodo_defi_types # Option 1: Local path via sdk submodule (pinned). See docs/SDK_SUBMODULE_MANAGEMENT.md
     # git: # Option 2: Git dependency
-    #   url: https://github.com/KomodoPlatform/komodo-defi-sdk-flutter.git
+    #   url: https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter.git
     #   path: packages/komodo_defi_types
     #   ref: dev
     # ^0.3.2+1 # Option 3: Pub.dev dependency
@@ -181,18 +178,18 @@ dependencies:
   komodo_ui:
     path: sdk/packages/komodo_ui # Option 1: Local path via sdk submodule (pinned). See docs/SDK_SUBMODULE_MANAGEMENT.md
     # git: # Option 2: Git dependency
-    #   url: https://github.com/KomodoPlatform/komodo-defi-sdk-flutter.git
+    #   url: https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter.git
     #   path: packages/komodo_ui
     #   ref: dev
     # ^0.3.0+3 # Option 3: Pub.dev dependency
 
-  feedback: ^3.1.0
+  feedback: ^3.2.0
   ntp: ^2.0.0
-  matomo_tracker: ^6.0.0
-  flutter_window_close: ^1.2.0
+  matomo_tracker: ^6.1.0
+  flutter_window_close: ^1.3.0
 
 dev_dependencies:
-  test: ^1.24.1 # dart.dev
+  test: ^1.30.0 # dart.dev
   flutter_launcher_icons: ^0.14.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -229,6 +226,7 @@ flutter:
   assets:
     - assets/
     - assets/custom_icons/16px/
+    - assets/legal/
     - assets/logo/
     - assets/fonts/
     - assets/flags/
@@ -274,6 +272,9 @@ flutter:
           weight: 700
         - asset: assets/fonts/Manrope-ExtraBold.ttf
           weight: 800
+    - family: Rubik
+      fonts:
+        - asset: assets/fonts/Rubik-VariableFont_wght.ttf
     - family: Roboto
       fonts:
         - asset: assets/fallback_fonts/roboto/v20/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf

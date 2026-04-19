@@ -24,6 +24,7 @@ extension AssetCoinExtension on Asset {
       platform: id.parentId?.id ?? platform ?? '',
       contractAddress: contractAddress ?? '',
     );
+    final explorerPattern = protocol.explorerPattern;
 
     return Coin(
       type: protocol.subClass.toCoinType(),
@@ -32,10 +33,9 @@ extension AssetCoinExtension on Asset {
       name: id.name,
       logoImageUrl: logoImageUrl ?? '',
       isCustomCoin: isCustomToken,
-      explorerUrl: config.valueOrNull<String>('explorer_url') ?? '',
-      explorerTxUrl: config.valueOrNull<String>('explorer_tx_url') ?? '',
-      explorerAddressUrl:
-          config.valueOrNull<String>('explorer_address_url') ?? '',
+      explorerUrl: explorerPattern.baseUrl?.toString() ?? '',
+      explorerTxUrl: explorerPattern.txPattern ?? '',
+      explorerAddressUrl: explorerPattern.addressPattern ?? '',
       protocolType: protocol.subClass.ticker,
       protocolData: protocolData,
       isTestCoin: protocol.isTestnet,
@@ -68,6 +68,10 @@ extension AssetCoinExtension on Asset {
 extension CoinTypeExtension on CoinSubClass {
   CoinType toCoinType() {
     switch (this) {
+      case CoinSubClass.trx:
+        return CoinType.trx;
+      case CoinSubClass.trc20:
+        return CoinType.trc20;
       case CoinSubClass.base:
         return CoinType.base20;
       case CoinSubClass.ftm20:
@@ -108,6 +112,8 @@ extension CoinTypeExtension on CoinSubClass {
         return CoinType.sbch;
       case CoinSubClass.erc20:
         return CoinType.erc20;
+      case CoinSubClass.grc20:
+        return CoinType.grc20;
       case CoinSubClass.krc20:
         return CoinType.krc20;
       case CoinSubClass.zhtlc:
@@ -126,6 +132,9 @@ extension CoinTypeExtension on CoinSubClass {
     switch (this) {
       case CoinSubClass.base:
         return true;
+      case CoinSubClass.trx:
+      case CoinSubClass.trc20:
+        return false;
       case CoinSubClass.avx20:
       case CoinSubClass.bep20:
       case CoinSubClass.ftm20:
@@ -141,6 +150,7 @@ extension CoinTypeExtension on CoinSubClass {
       case CoinSubClass.hecoChain:
       case CoinSubClass.rskSmartBitcoin:
       case CoinSubClass.erc20:
+      case CoinSubClass.grc20:
         return true;
       default:
         return false;
@@ -155,6 +165,10 @@ extension CoinTypeExtension on CoinSubClass {
 extension CoinSubClassExtension on CoinType {
   CoinSubClass toCoinSubClass() {
     switch (this) {
+      case CoinType.trx:
+        return CoinSubClass.trx;
+      case CoinType.trc20:
+        return CoinSubClass.trc20;
       case CoinType.base20:
         return CoinSubClass.base;
       case CoinType.ftm20:
@@ -195,6 +209,8 @@ extension CoinSubClassExtension on CoinType {
         return CoinSubClass.smartBch;
       case CoinType.erc20:
         return CoinSubClass.erc20;
+      case CoinType.grc20:
+        return CoinSubClass.grc20;
       case CoinType.krc20:
         return CoinSubClass.krc20;
       case CoinType.zhtlc:
