@@ -1,10 +1,10 @@
-# Gleec Wallet Manual Test Case Document (Complete)
+# Cheetahdex Wallet Manual Test Case Document (Complete)
 
 ## 1. Test Strategy Summary
 
 ### Objective
 
-Validate end-to-end manual quality of Gleec Wallet across Web, Android, iOS, macOS, Linux, and Windows for wallet lifecycle, money movement, DEX/bridge/NFT operations, settings, bot features, routing, responsiveness, accessibility, security/privacy, recovery, and localization using **testnet/faucet assets only** (DOC/MARTY).
+Validate end-to-end manual quality of Cheetahdex Wallet across Web, Android, iOS, macOS, Linux, and Windows for wallet lifecycle, money movement, DEX/bridge/NFT operations, settings, bot features, routing, responsiveness, accessibility, security/privacy, recovery, and localization using **testnet/faucet assets only** (DOC/MARTY).
 
 ### In-Scope
 
@@ -2103,7 +2103,7 @@ Validate end-to-end manual quality of Gleec Wallet across Web, Android, iOS, mac
 
 ## 12. Final Coverage Statement
 
-This document provides complete manual QA coverage for the full Gleec Wallet app scope and implemented feature surface, including authentication/lifecycle, wallet/coin management, dashboard, coin details, send/withdraw, DEX, bridge, NFT, settings, market maker bot, routing/navigation, responsive behavior, cross-platform compatibility, accessibility, security/privacy, error recovery, localization/readability, Fiat on-ramp, support/feedback, advanced security/settings operations, custom token import, rewards, feature-gating, quick-login remembered-wallet flow, and conditional Bitrefill/ZHTLC/system-time warning behavior.
+This document provides complete manual QA coverage for the full Cheetahdex Wallet app scope and implemented feature surface, including authentication/lifecycle, wallet/coin management, dashboard, coin details, send/withdraw, DEX, bridge, NFT, settings, market maker bot, routing/navigation, responsive behavior, cross-platform compatibility, accessibility, security/privacy, error recovery, localization/readability, Fiat on-ramp, support/feedback, advanced security/settings operations, custom token import, rewards, feature-gating, quick-login remembered-wallet flow, and conditional Bitrefill/ZHTLC/system-time warning behavior.
 All blockchain-dependent scenarios are explicitly designed for testnet/faucet-only execution using DOC/MARTY with in-app faucet action coverage for success, cooldown/denied, and network/error handling.
 Assumptions applied: test services are available; at least one memo/tag-required test asset and one NFT test asset exist; DEX/bridge/Fiat provider QA routes are provisioned; and conditional integrations/features are executed when enabled in the build/environment.
 

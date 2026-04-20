@@ -1,4 +1,4 @@
-# Gleec Wallet QA Automation Architecture
+# Cheetahdex Wallet QA Automation Architecture
 
 > **Skyvern + Ollama Vision-Based Testing — Consolidated Technical Reference**
 >
@@ -25,11 +25,11 @@
 
 ## 1. Executive Summary
 
-This document is the consolidated technical reference for automating QA testing of the Gleec Wallet, a Flutter web application within the Komodo Platform ecosystem. It covers the complete architecture from infrastructure through test case design to execution strategy.
+This document is the consolidated technical reference for automating QA testing of the Cheetahdex Wallet, a Flutter web application within the Komodo Platform ecosystem. It covers the complete architecture from infrastructure through test case design to execution strategy.
 
 ### Problem
 
-Flutter web applications render their entire UI to an HTML canvas element, which makes traditional DOM-based testing tools (Selenium, Cypress, Playwright selectors) non-functional. The Gleec Wallet has 85+ manual test cases across 26 feature areas and 6 platforms, requiring approximately 52 hours of manual execution time per full regression cycle.
+Flutter web applications render their entire UI to an HTML canvas element, which makes traditional DOM-based testing tools (Selenium, Cypress, Playwright selectors) non-functional. The Cheetahdex Wallet has 85+ manual test cases across 26 feature areas and 6 platforms, requiring approximately 52 hours of manual execution time per full regression cycle.
 
 ### Solution
 

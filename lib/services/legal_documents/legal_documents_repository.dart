@@ -17,9 +17,9 @@ class LegalDocumentsRepository {
        _assetBundle = assetBundle ?? rootBundle,
        _httpClient = httpClient ?? http.Client();
 
-  static const String _githubOwner = 'GLEECBTC';
-  static const String _githubRepo = 'gleec-wallet';
-  static const String _githubBranch = 'main';
+  static const String _githubOwner = 'ShorelineCrypto';
+  static const String _githubRepo = 'cheetahdex-wallet-web';
+  static const String _githubBranch = 'legal';
 
   final BaseStorage _storage;
   final AssetBundle _assetBundle;

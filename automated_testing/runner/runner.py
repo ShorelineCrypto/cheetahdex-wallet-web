@@ -540,7 +540,7 @@ async def main(
 
 def cli() -> None:
     parser = argparse.ArgumentParser(
-        description="Gleec Wallet QA Automation Runner"
+        description="Cheetahdex Wallet QA Automation Runner"
     )
     parser.add_argument(
         "--matrix",

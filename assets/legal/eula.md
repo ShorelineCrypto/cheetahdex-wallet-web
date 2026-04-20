@@ -1,8 +1,8 @@
-# End User License Agreement (EULA) | GLEEC Wallet
+# End User License Agreement (EULA) | Cheetahdex Wallet
 
 This End User License Agreement (“**EULA**”) is a legally binding agreement between you (“**User**,” “**you**,” or “**your**”) and **GLEEC** (“**GLEEC**,” “**we**,” “**us**,” or “**our**”).
 
-This EULA governs your access to and use of the GLEEC Wallet software, including any associated web applications, mobile applications, desktop applications, features, content, updates, and related services (collectively, the “**Software**”), whether obtained directly from GLEEC or through an authorized distributor, reseller, or partner (“**Distributor**”).
+This EULA governs your access to and use of the Cheetahdex Wallet software, including any associated web applications, mobile applications, desktop applications, features, content, updates, and related services (collectively, the “**Software**”), whether obtained directly from GLEEC or through an authorized distributor, reseller, or partner (“**Distributor**”).
 
 By clicking “Accept,” downloading, installing, accessing, or using the Software, you acknowledge that you have read, understood, and agree to be bound by the terms of this EULA. If you do not agree to these terms, you must not download, install, access, or use the Software.
 

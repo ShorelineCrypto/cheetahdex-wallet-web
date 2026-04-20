@@ -1,4 +1,4 @@
-# Gleec Wallet v0.9.4 Release Notes
+# Cheetahdex Wallet v0.9.4 Release Notes
 
 This release packages the current `dev` branch work for the next `main` update with broader asset support, a stronger web runtime, and a much larger polish pass across the wallet. Highlights include TRON and SIA flows on top of `komodo-defi-sdk v0.5.0`, Flutter Web WASM support, runtime-loaded legal documents, refreshed wallet and trading surfaces, and the QA/release infrastructure that came out of the documented polish program.
 
@@ -141,15 +141,15 @@ See the [full SDK changelog](https://github.com/GLEECBTC/komodo-defi-sdk-flutter
 
 ---
 
-# Gleec Wallet v0.9.3 Release Notes
+# Cheetahdex Wallet v0.9.3 Release Notes
 
 This release delivers significant performance improvements, enhanced analytics capabilities, and a comprehensive overhaul of authentication and wallet management. Key highlights include real-time portfolio streaming, a dual analytics pipeline with persistent queueing, one-click sign-in, Z-HTLC support, and extensive optimisations that reduce RPC usage while improving responsiveness across all platforms.
 
-**This release also introduces the complete GLEEC rebrand** — migrating from Komodo Wallet to Gleec Wallet with a refreshed purple colour scheme, updated logos, new domain infrastructure, and updated legal documentation.
+**This release also introduces the complete GLEEC rebrand** — migrating from Komodo Wallet to Cheetahdex Wallet with a refreshed purple colour scheme, updated logos, new domain infrastructure, and updated legal documentation.
 
 ## 🎨 GLEEC Rebrand
 
-- **Complete Brand Migration** ([@CharlVS]) - Full rebrand from Komodo Wallet to Gleec Wallet across all platforms and assets
+- **Complete Brand Migration** ([@CharlVS]) - Full rebrand from Komodo Wallet to Cheetahdex Wallet across all platforms and assets
 - **Purple Colour Scheme** ([@CharlVS]) - Updated colour palette from Komodo blue to GLEEC purple with theme-aware adjustments
 - **Logo & Asset Updates** ([@CharlVS]) - New GLEEC wordmark logos replacing Komodo branding throughout the app
 - **Domain Infrastructure** ([@CharlVS]) - Migrated URLs and endpoints to Gleec infrastructure (dex domain, tickers prefetch)
@@ -383,7 +383,7 @@ This release includes contributions from 11 developers:
 
 _For developers building with Komodo DeFi SDK: This release includes [komodo-defi-sdk v1.0.0-pre.1](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/releases) with breaking changes related to streaming APIs and caching behaviour. Review the [SDK changelog](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/blob/main/CHANGELOG.md) for migration guidance._
 
-# Gleec Wallet v0.9.2 Release Notes
+# Cheetahdex Wallet v0.9.2 Release Notes
 
 This release brings numerous improvements to wallet functionality, enhanced user experience, and critical bug fixes. Key highlights include HD wallet private key export, improved Trezor support, enhanced UI/UX throughout the application, and platform-specific optimizations.
 
@@ -491,7 +491,7 @@ This release brings numerous improvements to wallet functionality, enhanced user
 
 ---
 
-# Gleec Wallet v0.9.1 Release Notes
+# Cheetahdex Wallet v0.9.1 Release Notes
 
 This is a hotfix release that addresses critical issues with Trezor hardware wallet login functionality.
 
@@ -503,9 +503,9 @@ This is a hotfix release that addresses critical issues with Trezor hardware wal
 
 ---
 
-# Gleec Wallet v0.9.0 Release Notes
+# Cheetahdex Wallet v0.9.0 Release Notes
 
-We are excited to announce Gleec Wallet v0.9.0. This release introduces HD wallet functionality, cross-platform fiat on-ramp improvements, a new feedback provider, and numerous bug fixes and dependency upgrades.
+We are excited to announce Cheetahdex Wallet v0.9.0. This release introduces HD wallet functionality, cross-platform fiat on-ramp improvements, a new feedback provider, and numerous bug fixes and dependency upgrades.
 
 Under the hood, the app has undergone a major rewrite to migrate to our new KDF Flutter SDK. This also allows developers to quickly and easily build their own DeFi applications in a matter of hours instead of months. See the [SDK package](https://github.com/GLEECBTC/komodo-defi-sdk-flutter) for more information.
 

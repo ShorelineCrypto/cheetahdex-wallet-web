@@ -1,4 +1,4 @@
-# Gleec Wallet Test Cases: Automation Suitability Evaluation & Overhauled Test Matrix
+# Cheetahdex Wallet Test Cases: Automation Suitability Evaluation & Overhauled Test Matrix
 
 > Evaluates `GLEEC_WALLET_MANUAL_TEST_CASES.md` against the Skyvern + Ollama vision-based automation architecture.
 

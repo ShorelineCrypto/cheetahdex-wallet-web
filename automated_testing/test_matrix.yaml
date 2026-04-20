@@ -1,5 +1,5 @@
 # =============================================================================
-# Gleec Wallet — Skyvern Automated Test Matrix (Web Only)
+# Cheetahdex Wallet — Skyvern Automated Test Matrix (Web Only)
 # =============================================================================
 #
 # Converted from GLEEC_WALLET_MANUAL_TEST_CASES.md for the Skyvern + Ollama
@@ -115,7 +115,7 @@ tests:
     max_steps: 30
     timeout: 300
     prompt: |
-      You are completing the wallet creation flow for a Gleec Wallet.
+      You are completing the wallet creation flow for a Cheetahdex Wallet.
       If you see a seed confirmation challenge (asking you to select or enter specific seed words
       in a certain order), complete it by clicking the correct words in the correct order.
       The words should be visible on screen as clickable chips or buttons.
