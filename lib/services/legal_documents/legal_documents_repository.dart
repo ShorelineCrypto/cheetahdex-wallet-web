@@ -19,7 +19,7 @@ class LegalDocumentsRepository {
 
   static const String _githubOwner = 'ShorelineCrypto';
   static const String _githubRepo = 'cheetahdex-wallet-web';
-  static const String _githubBranch = 'legal';
+  static const String _githubBranch = 'cheetah';
 
   final BaseStorage _storage;
   final AssetBundle _assetBundle;

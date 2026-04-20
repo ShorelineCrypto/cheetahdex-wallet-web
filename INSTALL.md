@@ -22,24 +22,24 @@ Finally, check dependency with below command:
 
 ShorelineCrypto production web/android app was compiled successfully under below dependency versions in Ubuntu 22.04:
 ```
- [!] Flutter (Channel [user-branch], 3.35.3, on Ubuntu 22.04.5 LTS 6.8.0-87-generic, locale en_US.UTF-8) [55ms]
-    ! Flutter version 3.35.3 on channel [user-branch] at /home/hlu/flutter
+ [!] Flutter (Channel [user-branch], 3.41.4, on Ubuntu 22.04.5 LTS 6.8.0-106-generic, locale en_US.UTF-8) [94ms]
+    ! Flutter version 3.41.4 on channel [user-branch] at /home/hlu/flutter
       Currently on an unknown channel. Run `flutter channel` to switch to an official channel.
       If that doesn't fix the issue, reinstall Flutter by following instructions at https://flutter.dev/setup.
     ! Upstream repository unknown source is not a standard remote.
       Set environment variable "FLUTTER_GIT_URL" to unknown source to dismiss this error.
-    • Framework revision a402d9a437 (2 months ago), 2025-09-03 14:54:31 -0700
-    • Engine revision ddf47dd3ff
-    • Dart version 3.9.2
-    • DevTools version 2.48.0
-    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets,
-      enable-lldb-debugging
+    • Framework revision ff37bef603 (7 weeks ago), 2026-03-03 16:03:22 -0800
+    • Engine revision e4b8dca3f1
+    • Dart version 3.11.1
+    • DevTools version 2.54.1
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, omit-legacy-version-file,
+      enable-lldb-debugging, enable-uiscene-migration
     • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
 
-[✓] Android toolchain - develop for Android devices (Android SDK version 35.0.0) [3.1s]
+[✓] Android toolchain - develop for Android devices (Android SDK version 36.0.0) [2.9s]
     • Android SDK at /home/hlu/Android/Sdk
     • Emulator version 36.1.9.0 (build_id 13823996) (CL:N/A)
-    • Platform android-35, build-tools 35.0.0
+    • Platform android-36, build-tools 36.0.0
     • ANDROID_HOME = /home/hlu/android-studio
     • Java binary at: /home/hlu/android-studio/jbr/bin/java
       This is the JDK bundled with the latest Android Studio installation on this machine.
@@ -47,10 +47,10 @@ ShorelineCrypto production web/android app was compiled successfully under below
     • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
     • All Android licenses accepted.
 
-[✓] Chrome - develop for the web [19ms]
+[✓] Chrome - develop for the web [22ms]
     • Chrome at google-chrome
 
-[✓] Linux toolchain - develop for Linux desktop [314ms]
+[✓] Linux toolchain - develop for Linux desktop [536ms]
     • Ubuntu clang version 14.0.0-1ubuntu1.1
     • cmake version 3.22.1
     • ninja version 1.10.1
@@ -58,19 +58,11 @@ ShorelineCrypto production web/android app was compiled successfully under below
     • GL_EXT_framebuffer_blit: no
     • GL_EXT_texture_format_BGRA8888: no
 
-[✓] Android Studio (version 2024.3) [14ms]
-    • Android Studio at /home/hlu/android-studio
-    • Flutter plugin can be installed from:
-      🔨 https://plugins.jetbrains.com/plugin/9212-flutter
-    • Dart plugin can be installed from:
-      🔨 https://plugins.jetbrains.com/plugin/6351-dart
-    • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
+[✓] Connected device (2 available) [177ms]
+    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-106-generic
+    • Chrome (web)    • chrome • web-javascript • Google Chrome 146.0.7680.153
 
-[✓] Connected device (2 available) [228ms]
-    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-87-generic
-    • Chrome (web)    • chrome • web-javascript • Google Chrome 142.0.7444.162
-
-[✓] Network resources [608ms]
+[✓] Network resources [301ms]
     • All expected network resources are available.
 
 ! Doctor found issues in 1 category.
@@ -86,13 +78,13 @@ To compile your self-hosted web app, run below
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
   cd cheetahdex-wallet-web && git checkout cheetahdex
   git submodule update --init --recursive
-  flutter build web --csp --no-web-resources-cdn
+  flutter build web --csp --no-web-resources-cdn --wasm
 ```
 
 If above command runs successfully, it will say that coins has been updated, please re-compile web app again. Now re-compile:
 
 ```
-  flutter build web --csp --no-web-resources-cdn
+  flutter build web --csp --no-web-resources-cdn --wasm
 ```
 
 Now you should see the notice that web app has been compiled successfully at terminal. 
