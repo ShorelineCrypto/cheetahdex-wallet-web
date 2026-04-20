@@ -62,7 +62,7 @@ jobs:
         id: validate_build
         uses: ./.github/actions/validate-build
 
-      - name: Deploy Gleec Wallet web feature preview (Expires in 7 days)
+      - name: Deploy Cheetahdex Wallet web feature preview (Expires in 7 days)
         id: deploy_preview
         uses: FirebaseExtended/action-hosting-deploy@v0.7.1
         with:
@@ -73,7 +73,7 @@ jobs:
           expires: 7d
           projectId: komodo-wallet-official
 
-      - name: Deploy Gleec Wallet Web dev preview (`dev` branch)
+      - name: Deploy Cheetahdex Wallet Web dev preview (`dev` branch)
         id: deploy_dev
         if: github.ref == 'refs/heads/dev' && github.event_name != 'workflow_dispatch'
         uses: FirebaseExtended/action-hosting-deploy@v0.7.1

@@ -79,7 +79,7 @@ REPORT_TEMPLATE = Template("""\
 </style>
 </head>
 <body>
-<h1>Gleec Wallet QA Report</h1>
+<h1>Cheetahdex Wallet QA Report</h1>
 <div class="meta">
   {{ run.timestamp }} &middot; {{ run.base_url }} &middot;
   Engine: {{ run.engine }} &middot; Model: {{ run.model }} &middot;

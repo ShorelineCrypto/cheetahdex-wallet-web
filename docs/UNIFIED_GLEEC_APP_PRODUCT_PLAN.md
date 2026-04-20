@@ -653,7 +653,7 @@ When tapping an asset, the detail page shows:
 └─────────────────────────────────────────────────┘
 ```
 
-#### Key Enhancements over Current Gleec Wallet
+#### Key Enhancements over Current Cheetahdex Wallet
 
 1. **Balance split by venue** — shows where the asset is held (wallet vs exchange vs card)
 2. **"Trade" action** — opens CEX trading pair for this asset (in addition to "Swap" for DEX)
@@ -932,7 +932,7 @@ Import Options:
 │   ├── Set password
 │   └── Auto-detect supported coins and balances
 │
-├── From File (Legacy Gleec Wallet backup)
+├── From File (Legacy Cheetahdex Wallet backup)
 │   ├── File picker
 │   ├── Decrypt with password
 │   └── Migrate to new format
@@ -970,7 +970,7 @@ Returning User:
     └── CEX/Pay session may have separate timeout (stricter)
 ```
 
-### 8.6 Key UX Decisions vs. Current Gleec Wallet
+### 8.6 Key UX Decisions vs. Current Cheetahdex Wallet
 
 | Current Behavior | Gleec One Behavior | Rationale |
 |---|---|---|
@@ -2003,7 +2003,7 @@ The unified app is delivered in four phases, each shippable as an independent re
 
 4. **Regulatory scope:** Which jurisdictions are targeted for launch? Card and Pay features may need to be geo-fenced.
 
-5. **Brand alignment:** Is "Gleec One" the final name? Should the app replace the existing Gleec Wallet brand or coexist during transition?
+5. **Brand alignment:** Is "Gleec One" the final name? Should the app replace the existing Cheetahdex Wallet brand or coexist during transition?
 
 6. **Team capacity:** What's the available Flutter development team size? The roadmap assumes 3-5 Flutter developers + 1 designer + 1 PM.
 
@@ -2011,13 +2011,13 @@ The unified app is delivered in four phases, each shippable as an independent re
 
 8. **Hardware wallet scope for CEX:** Should Trezor users be able to trade on CEX (requires custodial deposit), or remain wallet-only?
 
-9. **Existing user migration:** How do we migrate existing Gleec Wallet users to Gleec One? Can seed phrases be re-imported seamlessly? Should the old app prompt users to download Gleec One?
+9. **Existing user migration:** How do we migrate existing Cheetahdex Wallet users to Gleec One? Can seed phrases be re-imported seamlessly? Should the old app prompt users to download Gleec One?
 
 10. **SDK ownership:** Should the Komodo DeFi SDK remain as a git submodule, or should Gleec fork and own it for faster iteration?
 
-11. **Old wallet end-of-life:** What is the maintenance window for the existing Gleec Wallet after Gleec One launches? When does it get sunset?
+11. **Old wallet end-of-life:** What is the maintenance window for the existing Cheetahdex Wallet after Gleec One launches? When does it get sunset?
 
-12. **App store listing:** New listing for Gleec One, or update the existing Gleec Wallet listing? New listing means rebuilding download numbers but avoids confusing existing users with a radically different app.
+12. **App store listing:** New listing for Gleec One, or update the existing Cheetahdex Wallet listing? New listing means rebuilding download numbers but avoids confusing existing users with a radically different app.
 
 13. **Repository hosting:** Should the new Gleec One repo live in the same GitHub org? Should the SDK submodule reference be public or use deploy keys?
 

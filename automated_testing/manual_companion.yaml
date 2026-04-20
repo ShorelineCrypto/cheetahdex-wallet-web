@@ -1,4 +1,4 @@
-# Gleec Wallet — Manual-Only Test Companion Checklist
+# Cheetahdex Wallet — Manual-Only Test Companion Checklist
 #
 # These 14 tests CANNOT be automated even with OS calls and Playwright.
 # They require physical hardware, screen reader software, native platform
@@ -32,7 +32,7 @@ manual_tests:
     interactive_steps:
       - prompt: "Connect your Trezor device via USB to the computer."
         wait_for: keypress
-      - prompt: "Open the Gleec Wallet web app and look for a hardware wallet import option. Click it to begin pairing the Trezor. Follow any prompts on the Trezor screen to authorize the connection. Is the Trezor wallet successfully imported? (y/n)"
+      - prompt: "Open the Cheetahdex Wallet web app and look for a hardware wallet import option. Click it to begin pairing the Trezor. Follow any prompts on the Trezor screen to authorize the connection. Is the Trezor wallet successfully imported? (y/n)"
         wait_for: confirmation
       - prompt: "Navigate to a coin with balance and open the Send form. Fill in a valid address and small amount, then click Preview/Confirm. The Trezor should display a signing request on its screen. Confirm on the Trezor device. Did the transaction submit successfully? (y/n)"
         wait_for: confirmation

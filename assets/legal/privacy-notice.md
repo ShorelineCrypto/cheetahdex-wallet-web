@@ -6,7 +6,7 @@ Welcome to the Gleec Global Privacy Notice (“Privacy Notice”). Please spend 
 
 We truly respect your privacy and are committed to protecting your personal data. This Privacy Notice applies to the processing of personal data by Gleec Pay LTD. with its principal place of business located at 5811 Cooney Road, Suite 305, South Tower, Richmond, British Columbia, V6X 3M1, Canada and its affiliates companies (“Gleec”, “Gleec.com”, “The Company”, “we”, “us”, “our”) in connection with:
 
-* use of any of our products, services or applications – including but no limited to Gleec Pay, Gleec Card, Gleec Chat, Gleec Exchange, Gleec DEX and Gleec Wallet (collectively the “Services” or the “Platform”)  
+* use of any of our products, services or applications – including but no limited to Gleec Pay, Gleec Card, Gleec Chat, Gleec Exchange, Gleec DEX and Cheetahdex Wallet (collectively the “Services” or the “Platform”)  
 * visit or use of our website Gleec.com (“Site”) or any of GLEEC’s ecosystem mobile application (“App”)
 
 Please note that our Services, Site and Apps are not intended for minors below the age of 18 years and we do not knowingly collect data relating to minors.

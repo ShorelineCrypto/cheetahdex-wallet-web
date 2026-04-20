@@ -1,6 +1,6 @@
 # Contrib Scripts
 
-This directory contains utility scripts for building, packaging, and testing the Gleec Wallet application.
+This directory contains utility scripts for building, packaging, and testing the Cheetahdex Wallet application.
 
 ## Scripts Overview
 
