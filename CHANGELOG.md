@@ -1,11 +1,9 @@
 # Cheetahdex Wallet v0.9.4 Release Notes
 
-This release packages the current `dev` branch work for the next `main` update with broader asset support, a stronger web runtime, and a much larger polish pass across the wallet. Highlights include TRON and SIA flows on top of `komodo-defi-sdk v0.5.0`, Flutter Web WASM support, runtime-loaded legal documents, refreshed wallet and trading surfaces, and the QA/release infrastructure that came out of the documented polish program.
+This release packages the current `cheetah` branch work for the next `cheetahdex` update with broader asset support, a stronger web runtime, and a much larger polish pass across the wallet. Highlights include TRON and SIA flows on top of `komodo-defi-sdk v0.5.0`, Flutter Web WASM support, runtime-loaded legal documents, refreshed wallet and trading surfaces, and the QA/release infrastructure that came out of the documented polish program.
 
 ## 🚀 New Features
 
-- **TRON and TRC20 Wallet Support** ([@CharlVS], #3446) - Add TRON activation and withdrawal flows in the wallet on top of the latest SDK roll.
-- **Custom Token Import and TRON Fiat Coverage** ([@CharlVS], #3446) - Expand custom-token import handling and map TRON assets cleanly into the supported fiat-provider flows.
 - **SIA Activation and Withdrawal Support** ([@CharlVS], #3449) - Complete SIA activation and withdrawal flows and align the app with the latest SDK behavior.
 - **Flutter Web WASM Runtime** ([@CharlVS], #3439) - Enable the full Flutter WASM runtime path for web builds with the required platform, persistence, and interop updates.
 - **Smarter Withdrawal Validation and Error Guidance** ([@CharlVS], #3434) - Improve bridge, trade, and withdrawal validation with clearer KDF/RPC error surfacing, memo handling, and send-state feedback.
@@ -15,7 +13,6 @@ This release packages the current `dev` branch work for the next `main` update w
 
 This release integrates [komodo-defi-sdk v0.5.0](https://github.com/GLEECBTC/komodo-defi-sdk-flutter) with the audited SDK release changes bringing:
 
-- **TRON and TRC20 Asset Support** ([SDK#316](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/316)) - Add TRON/TRC20 coin models and activation support across the SDK stack.
 - **SIA Activation and Withdrawal Support** ([SDK#320](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/320)) - Add first-class SIA activation and withdrawal handling.
 - **High-Level Managers and Typed Errors** ([SDK#312](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/312), [SDK#314](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/314)) - Introduce new balance, transaction, and withdrawal manager layers with richer typed error handling and trading stream plumbing.
 - **Token Safety, Fee Helpers, and Cleanup Hooks** ([SDK#319](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/319), [SDK#321](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/321)) - Add token safety checks, fee helpers, and custom-token cleanup support.
