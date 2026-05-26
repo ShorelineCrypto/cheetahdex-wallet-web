@@ -56,6 +56,7 @@ runs:
   using: "composite"
   steps:
     - name: Determine commit hash
+      id: determine_commit
       shell: bash
       run: |
         echo "Determining commit hash..."
@@ -71,7 +72,10 @@ runs:
         fi
         # Export for subsequent steps
         echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+        BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%MZ')
+        echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
     - name: Fetch packages and generate assets
+      id: fetch_and_build
       shell: bash
       env:
         GITHUB_API_PUBLIC_READONLY_TOKEN: ${{ inputs.GITHUB_TOKEN }}
@@ -99,8 +103,9 @@ runs:
         # Prepare build command with feedback service credentials
         BUILD_CMD="${{ inputs.BUILD_COMMAND }}"
 
-        # Add commit hash to build command
+        # Add commit hash and build date to build command
         BUILD_CMD="$BUILD_CMD --dart-define=COMMIT_HASH=$COMMIT_HASH"
+        BUILD_CMD="$BUILD_CMD --dart-define=BUILD_DATE=$BUILD_DATE"
 
         # Check and add the shared Trello board and list IDs if they are available
         HAVE_TRELLO_IDS=false
@@ -153,13 +158,14 @@ runs:
           BUILD_CMD="$BUILD_CMD --dart-define=CI=true --dart-define=ANALYTICS_DISABLED=true"
         fi
 
-        # Run flutter build once to download coin icons and config files. 
-        # This step is expected to "fail", since flutter build has to run again 
-        # after the assets are downloaded to register them in AssetManifest.bin
+        # Run flutter build once to download coin icons and config files.
+        # The second build must re-register them in AssetManifest.bin, so we
+        # wipe the build directory afterwards -- but preserve native_assets
+        # which desktop builds generate and need to reuse.
         echo ""
         flutter pub get --enforce-lockfile > /dev/null 2>&1 || true
         $BUILD_CMD > /dev/null 2>&1 || true
-        rm -rf build/*
+        find build -mindepth 1 -maxdepth 1 ! -name 'native_assets' -exec rm -rf {} + 2>/dev/null || true
 
         # Run flutter build and capture its output
         flutter pub get --enforce-lockfile

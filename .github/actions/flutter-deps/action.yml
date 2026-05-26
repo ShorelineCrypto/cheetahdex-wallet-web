@@ -4,13 +4,15 @@ runs:
   using: "composite"
   steps:
     - name: Get stable flutter
+      id: setup_flutter
       uses: subosito/flutter-action@v2
       with:
         # NB! Keep up-to-date with the flutter version used for development
-        flutter-version: "3.35.3"
+        flutter-version: "3.41.4"
         channel: "stable"
 
     - name: Prepare build directory
+      id: prepare_build
       shell: bash
       run: |
         flutter clean
