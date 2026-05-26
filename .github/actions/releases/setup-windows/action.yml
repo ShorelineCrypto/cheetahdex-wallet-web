@@ -27,7 +27,7 @@ runs:
       id: install_deps
       shell: pwsh
       run: |
-        flutter pub get --enforce-lockfile
+        flutter pub get
         flutter doctor
 
     - name: Setup Windows code signing
