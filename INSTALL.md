@@ -1,16 +1,19 @@
-# Installation Guide for Cheetahdex Wallet Web App and Android App 
+# Installation Guide for Cheetahdex Wallet Web App, Android App and Desktop App 
 
-For high level understanding of Cheetahdex Wallet  that this code base forked from, please checkout Komodo developer guide on README front page.
+For high level understanding of Cheetahdex Wallet code base, please checkout Komodo developer guide on README front page.
 
-Cheetahdex Wallet pretty much preserved all the features in the open sourced Komodo Wallet app, with DEX enabled and some logo/name changes.
+Cheetahdex Wallet pretty much preserved all the features in the open sourced Gleec Wallet (formerly Komodo Wallet) app, with DEX enabled and some logo/name changes.
 
-## Hardware Requirement - X86_64 Linux server at home or at cloud VPS
+## Hardware Requirement - proper hardware for PC, chromebook, or mobile phones
 
-The whole package was tested successfully in linux (ubuntu 22.04) on x64 hardware. Cheetahdex Web Wallet app does not use
-lots of disk space, nor CPU resources so that any reasonable home PC linux or linux on cloud VPS should work fine.
+The cheetahdex web app was successfully tested in google chrome or firefox browser on multiple platforms: windows 11, macOS, linux, chromebook, android phone.
 
-## Dependency Requirement for web/android wallet - flutter and android-studio
-Cheetahdex Web/Android Wallet app is flutter based app.  You can compile your own android apk, or compile and run self-hosted web app in Ubuntu 22.04 easily by meeting flutter and android-studio 
+The cheetahdex desktop app released binary files were tested successfully in Windows 11 and linux (ubuntu 24.04) on x64 hardware. 
+
+The cheetahdex android apk released file was successfully tested with google Nexus 9 pro and Samsung model phones.
+
+## Dependency Requirement for web/android/linux wallet - flutter and android-studio
+Cheetahdex Web/Android/linux Wallet app is flutter based app.  You can compile your own linux binary files, android apk, or compile and run self-hosted web app in Ubuntu 22.04 easily by meeting flutter and android-studio 
 requirement below. Check out Komodo Developer Guide on README for details.
 - Install latest version of android studio.  For easily navigate and install proper features of android-studio, a x-windows GUI on Ubuntu is recommended.
 - Install flutter on proper version under your home directory.  Too new or too old version of flutter won't compile this release.
@@ -188,7 +191,7 @@ If above command runs successfully, it may say that coins has been updated and c
 Now your linux binary release files will be built successfully under 'build/linux/x64/release/bundle' folder.  Rename this `bundle` folder name into proper linux folder with version, then move the whole folder into desired installation location such as below:
 
 ```commandline
-mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.3.1
+mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.3.2
 
 ```
 
@@ -198,10 +201,22 @@ You can launch the linux app from Linux Desktop by double clicking the binary fi
 
 You can also launch the linux wallet app on terminal with all the log printing out in details on terminal as below:
 ```commandline
-  cd ~/cheetahdex-wallet_linux_unified_0.9.3.1
+  cd ~/cheetahdex-wallet_linux_unified_0.9.3.2
   ./CheetahdexWallet &
   
 ```
+## Cheetahdex Wallet Windows Desktop App
+### Step 1 - fork cheetahdex-wallet-web repo
+
+Windows 11 release was obtained through github action CI/CD method. This repo source code allows you to perform the same binary file release yourself from source code.
+
+To obtain do-it-yourself your own binary compiled installation file for windows 11 desktop app from source code, you will need to fork this github repo first, then in your own forked repo, enable github action. Github action is free service provided by github for every github account. 
+
+
+### Step 2 - PR to cheetahdex branch to compile
+
+This source code under '.github' subfolder has all the code for github action CI/CD compiling method. The compiling will be triggered upon "pull request" to the default `cheetahdex` git branch. Try to play with your branch code and PR to cheetahdex branch to enable github Actions to compile windows desktp app binary release. The final compiled result file is at:
+git Actions -> Building desktop apps -> Build desktop (windows) -> Upload artifact
 
 
 
