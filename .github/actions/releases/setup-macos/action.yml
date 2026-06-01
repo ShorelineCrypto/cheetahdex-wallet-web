@@ -48,7 +48,7 @@ runs:
     - name: Install macOS build dependencies
       shell: bash
       run: |
-        flutter pub get --enforce-lockfile
+        flutter pub get
 
         cd macos
         pod install
