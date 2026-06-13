@@ -51,7 +51,7 @@ runs:
       id: install_deps
       shell: bash
       run: |
-        flutter pub get --enforce-lockfile
+        flutter pub get
 
         export GITHUB_API_PUBLIC_READONLY_TOKEN="${{ github.token }}"
         # The first bundle run may update transformer-managed inputs and exit
