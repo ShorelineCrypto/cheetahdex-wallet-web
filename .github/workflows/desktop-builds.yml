@@ -22,6 +22,11 @@ jobs:
             build_command: flutter build macos --no-pub --release
             artifact_path: build/macos/Build/Products/Release/*.app
             artifact_name: cheetahdex-wallet-macos
+          - platform: macosx64
+            runner: macos-15-intel
+            build_command: flutter build macos --no-pub --release
+            artifact_path: build/macos/Build/Products/Release/*.app
+            artifact_name: cheetahdex-wallet-macos
           - platform: windows
             runner: windows-latest
             build_command: flutter build windows --no-pub --release
@@ -48,6 +53,20 @@ jobs:
       - name: Setup macOS environment
         id: setup_macos
         if: ${{ matrix.platform == 'macos' }}
+        uses: ./.github/actions/releases/setup-macos
+        with:
+          p12-file-base64: ${{ secrets.MACOS_P12_BASE64 }}
+          p12-password: ${{ secrets.MACOS_P12_PASSWORD }}
+          bundle-id: "com.komodo.wallet"
+          profile-type: "MAC_APP_DEVELOPMENT"
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+      # macOS_x64 setup
+      - name: Setup macOS environment
+        id: setup_macos
+        if: ${{ matrix.platform == 'macosx64' }}
         uses: ./.github/actions/releases/setup-macos
         with:
           p12-file-base64: ${{ secrets.MACOS_P12_BASE64 }}
