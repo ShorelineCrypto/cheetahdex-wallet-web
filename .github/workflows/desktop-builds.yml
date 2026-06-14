@@ -22,6 +22,11 @@ jobs:
             build_command: flutter build macos --no-pub --release
             artifact_path: build/macos/Build/Products/Release/*.app
             artifact_name: cheetahdex-wallet-macos
+          - platform: macosx64
+            runner: macos-15-intel
+            build_command: flutter build macos --no-pub --release
+            artifact_path: build/macos/Build/Products/Release/*.app
+            artifact_name: cheetahdex-wallet-macos
           - platform: windows
             runner: windows-latest
             build_command: flutter build windows --no-pub --release
@@ -58,6 +63,20 @@ jobs:
           api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
 
+      # macOS_x64 setup
+      - name: Setup macOS_x64 environment
+        id: setup_macosx64
+        if: ${{ matrix.platform == 'macosx64' }}
+        uses: ./.github/actions/releases/setup-macos
+        with:
+          p12-file-base64: ${{ secrets.MACOS_P12_BASE64 }}
+          p12-password: ${{ secrets.MACOS_P12_PASSWORD }}
+          bundle-id: "com.komodo.wallet"
+          profile-type: "MAC_APP_DEVELOPMENT"
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
       # Linux setup
       - name: Setup Linux environment
         id: setup_linux
@@ -81,12 +100,13 @@ jobs:
         env:
           GITHUB_API_PUBLIC_READONLY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Flutter only forwards Xcode overrides with the FLUTTER_XCODE_ prefix.
-          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'NO' || '' }}
-          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'NO' || '' }}
-          FLUTTER_XCODE_CODE_SIGN_IDENTITY: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '' || '' }}
-          FLUTTER_XCODE_CODE_SIGN_STYLE: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && 'Manual' || '' }}
-          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '' || '' }}
-          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER: ${{ matrix.platform == 'macos' && github.event_name == 'pull_request' && '' || '' }}
+          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && 'NO' || 'NO' }}
+          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && 'NO' || 'NO' }}
+          CODE_SIGNING_ALLOWED: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && 'NO' || 'NO' }}
+          FLUTTER_XCODE_CODE_SIGN_IDENTITY: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && '' || '' }}
+          FLUTTER_XCODE_CODE_SIGN_STYLE: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && 'Manual' || '' }}
+          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && '' || '' }}
+          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER: ${{ (matrix.platform == 'macos' || matrix.platform == 'macosx64') && github.event_name == 'pull_request' && '' || '' }}
         uses: ./.github/actions/generate-assets
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

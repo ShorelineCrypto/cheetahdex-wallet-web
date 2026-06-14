@@ -1,5 +1,5 @@
 ---
-name: "Setup macOS Build Environment"
+name: "Setup macOS_x64 Build Environment"
 description: "Configures Flutter and dependencies for macOS builds"
 
 inputs:
