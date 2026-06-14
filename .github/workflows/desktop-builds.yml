@@ -65,7 +65,7 @@ jobs:
 
       # macOS_x64 setup
       - name: Setup macOS environment
-        id: setup_macos
+        id: setup_macosx64
         if: ${{ matrix.platform == 'macosx64' }}
         uses: ./.github/actions/releases/setup-macos
         with:
