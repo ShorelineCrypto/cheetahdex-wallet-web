@@ -23,7 +23,7 @@ jobs:
             artifact_path: build/macos/Build/Products/Release/*.app
             artifact_name: cheetahdex-wallet-macos
           - platform: macosx64
-            runner: macos-15-intel
+            runner: macos-26-intel
             build_command: flutter build macos --no-pub --release
             artifact_path: build/macos/Build/Products/Release/*.app
             artifact_name: cheetahdex-wallet-macos
