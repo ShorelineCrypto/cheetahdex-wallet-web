@@ -18,6 +18,11 @@ Welcome to the Cheetahdex Wallet open-source repository! This cutting-edge proje
 - Download/Install apk file from our [releases](https://github.com/ShorelineCrypto/cheetahdex-wallet-web/releases) into any android device. 
 - Self-built your own apk file by following `INSTALL.md` guide.
 
+### Desktop App
+- Download/Install binary release files from our [releases](https://github.com/ShorelineCrypto/cheetahdex-wallet-web/releases) for windows 11 or linux desktop. 
+- Self-built your own release files (windows or linux) by following `INSTALL.md` guide.
+
+
 Notes - for latest links and information on Cheetahdex wallet products on web, on desktop (linux/macOS/windows) or on mobile, please checkout Cheetahdex page at:
 https://cheetahdex.shorelinecrypto.com/
 
