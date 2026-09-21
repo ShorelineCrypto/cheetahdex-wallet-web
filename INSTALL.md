@@ -73,6 +73,16 @@ ShorelineCrypto production web/android app was compiled successfully under below
 ```
 
 ## Cheetahdex Wallet Web App
+### Step 0 - github token
+Compiling web app or github action require personal access token setup at github. Without active token setup, the web compiling will generate authorization error on github api downloading step, windows app git action will fail too. 
+
+Login into github account, follow menu settings -> Credentials, setup proper personal access token (classic or fine-grained), enable read only for repo and git actions.
+
+Run below on linux terminal before compiling step, or append at your .bashrc file:
+```commandline
+export GITHUB_API_PUBLIC_READONLY_TOKEN=xxxxxx
+```
+
 ### Step 1 - compile cheetahdex-wallet web app
 
 To compile your self-hosted web app, run below

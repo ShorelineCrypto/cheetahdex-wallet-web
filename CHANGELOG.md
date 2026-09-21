@@ -13,6 +13,8 @@ This release packages the current `cheetah` branch work for the next `cheetahdex
 
 This release integrates [komodo-defi-sdk v0.5.0](https://github.com/GLEECBTC/komodo-defi-sdk-flutter) with the audited SDK release changes bringing:
 
+- **komodo-defi-sdk-flutter repo switched to shorelinecrypto** ([SDK commit](https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter/commit/b69a283ba050e4a778919d757d58d9d58a49fe8e)) 
+- **KDF upgraded to shorelinecryto version v2.7.0-beta through SDK** ([KDF v2.7.0](https://github.com/ShorelineCrypto/komodo-defi-framework/releases/tag/v2.7.0-beta)) - The first custom KDF version released by shorelinecrypto.
 - **SIA Activation and Withdrawal Support** ([SDK#320](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/320)) - Add first-class SIA activation and withdrawal handling.
 - **High-Level Managers and Typed Errors** ([SDK#312](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/312), [SDK#314](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/314)) - Introduce new balance, transaction, and withdrawal manager layers with richer typed error handling and trading stream plumbing.
 - **Token Safety, Fee Helpers, and Cleanup Hooks** ([SDK#319](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/319), [SDK#321](https://github.com/GLEECBTC/komodo-defi-sdk-flutter/pull/321)) - Add token safety checks, fee helpers, and custom-token cleanup support.
