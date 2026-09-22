@@ -119,16 +119,18 @@ const List<String> unauthenticatedUserPriorityTickers = [
   'BTC',
   'CHTA',
   'NENG',
-  'ARRR',
-  'FIRO',
-  'KMD',
   'LTC',
+  'ZEC',
+  'DASH',
+  'FIRO',
+  'PIVX',
   'DOGE',
   'ETH',
   'BNB',
-  'DASH',
   'DGB',
-  'ZEC',
+  'ARRR',
+  'KMD',
+  'KMDCL',
 ];
 
 /// List of coins that are excluded from the list of coins displayed on the
@@ -197,7 +199,6 @@ const List<String> appWalletOnlyAssetList = [
 /// This will not affect existing wallets.
 /// Reduced to minimize initial connections and resource usage.
 List<String> get enabledByDefaultCoins => [
-  'KMD', // Komodo ecosystem coin
   'CHTA', // Cheetahdex meme coin
   'NENG', // Cheetahdex default coin
 ];
