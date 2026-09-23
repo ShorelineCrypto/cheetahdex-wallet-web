@@ -72,9 +72,8 @@ ShorelineCrypto production web/android app was compiled successfully under below
 
 ```
 
-## Cheetahdex Wallet Web App
-### Step 0 - github token
-Compiling web app or github action require personal access token setup at github. Without active token setup, the web compiling will generate authorization error on github api downloading step, windows app git action will fail too. 
+## Dependency - github token
+Compiling web app with flutter or github action require personal access token setup at github. Without active token setup, the web compiling will generate authorization error on github api downloading step, windows app git action will fail too. 
 
 Login into github account, follow menu settings -> Credentials, setup proper personal access token (classic or fine-grained), enable read only for repo and git actions.
 
@@ -83,6 +82,8 @@ Run below on linux terminal before compiling step, or append at your .bashrc fil
 export GITHUB_API_PUBLIC_READONLY_TOKEN=xxxxxx
 ```
 
+
+## Cheetahdex Wallet Web App
 ### Step 1 - compile cheetahdex-wallet web app
 
 To compile your self-hosted web app, run below
@@ -168,12 +169,29 @@ If step 1 failed with message like "duplicate error on color.xml bla bla", or th
   flutter build apk
 ```
 
-## Cheetahdex Wallet Linux Desktop App
+## Cheetahdex Wallet Windows/Linux Desktop App
+### Step 1 - fork cheetahdex-wallet-web repo
+
+Windows 11 (or linux) desktop release was obtained through github action CI/CD method. This repo source code allows you to perform the same binary file release yourself from source code.
+
+To obtain do-it-yourself your own binary compiled installation file for windows 11 desktop app from source code, you will need to fork this github repo first, then in your own forked repo, enable github action. Github action is free service provided by github for every github account. 
+
+### Step 2 - PR to cheetahdex branch to compile
+
+This source code under '.github' subfolder has all the code for github action CI/CD compiling method. The compiling will be triggered upon "pull request" to the default `cheetahdex` git branch. Try to play with your branch code and PR to cheetahdex branch to enable github Actions to compile windows/linux desktop app binary release. 
+
+The final compiled result windows file is at:
+git Actions -> Building desktop apps -> Build Desktop (windows) -> Upload artifact -> click download at browser.
+
+The final compiled result linux file is at:
+git Actions -> Building desktop apps -> Build Desktop (linux) -> Upload artifact -> click download at browser.
+
+## Cheetahdex Wallet Linux Desktop App - alternative flutter method
 ### Step 1 - compile cheetahdex-wallet Desktop Linux app
 
-There are 3 ways to compile linux desktop binary file: github action CI/CD method, docker method and flutter build method. Here linux release was obtained through flutter method.
+There are 3 ways to compile linux desktop binary file: github action CI/CD method, docker method and flutter build method. Here linux release was obtained through github action CI/CD method.
 
-To compile your own linux release files, make sure your linux server (ubuntu 22.04) met the flutter/linux dependency as shown above, then run below
+To compile your own linux release files on flutter method, make sure your linux server (ubuntu 22.04) met the flutter/linux dependency as shown above, then run below
 
 ```
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
@@ -193,32 +211,35 @@ If above command runs successfully, it may say that coins has been updated and c
 Now your linux binary release files will be built successfully under 'build/linux/x64/release/bundle' folder.  Rename this `bundle` folder name into proper linux folder with version, then move the whole folder into desired installation location such as below:
 
 ```commandline
-mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.3.2
+mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.4
 
 ```
 
-### Step 2 - Trouble shoot Linux Failure on kdf
+## Trouble Shooting on Linux Desktop Usage
+### Issue 1 - Trouble shoot Linux Failure on kdf
 
 You can launch the linux app from Linux Desktop by double clicking the binary file directly.  However, it is known that if you symbolic link the binary file into other location such as Desktop, an error of "kdf not found" will show up. 
 
 You can also launch the linux wallet app on terminal with all the log printing out in details on terminal as below:
 ```commandline
-  cd ~/cheetahdex-wallet_linux_unified_0.9.3.2
-  ./CheetahdexWallet &
+  cd ~/cheetahdex-wallet_linux_unified_0.9.4
+  ./CheetahDEX &
   
 ```
-## Cheetahdex Wallet Windows Desktop App
-### Step 1 - fork cheetahdex-wallet-web repo
 
-Windows 11 release was obtained through github action CI/CD method. This repo source code allows you to perform the same binary file release yourself from source code.
+### Issue 2 - Linux Desktop Flickering
 
-To obtain do-it-yourself your own binary compiled installation file for windows 11 desktop app from source code, you will need to fork this github repo first, then in your own forked repo, enable github action. Github action is free service provided by github for every github account. 
+Under remote desktop login into linux desktop running Cheetahdex Desktop App, or some hardware linux desktop, you may encounter annoying flickering or flashing of GUI. This is known bug on flutter and you can fix with below shell script: 
 
+```commandline
+#! /bin/bash
 
-### Step 2 - PR to cheetahdex branch to compile
+export LIBGL_ALWAYS_SOFTWARE=1
+export FLUTTER_LINUX_RENDERER=software
+./CheetahDEX &
+```
 
-This source code under '.github' subfolder has all the code for github action CI/CD compiling method. The compiling will be triggered upon "pull request" to the default `cheetahdex` git branch. Try to play with your branch code and PR to cheetahdex branch to enable github Actions to compile windows desktp app binary release. The final compiled result file is at:
-git Actions -> Building desktop apps -> Build desktop (windows) -> Upload artifact
-
-
-
+This above terminal launching script is provided in the binary release as `launch_cheetahdex.sh`. Run below in linux terminal to fix the flickering issue:
+```commandline
+  bash launch_cheetahdex.sh
+```
