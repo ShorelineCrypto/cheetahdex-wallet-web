@@ -14,6 +14,7 @@ import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/text_error.dart';
 import 'package:web_dex/shared/constants.dart';
+import 'package:web_dex/shared/utils/kdf_error_display.dart';
 
 part 'portfolio_growth_event.dart';
 part 'portfolio_growth_state.dart';
@@ -165,7 +166,6 @@ class PortfolioGrowthBloc
         filteredEventCoins,
         delay: kActivationPollingInterval,
       );
-
       // Only remove inactivate/activating coins after an attempt to load the
       // cached chart, as the cached chart may contain inactive coins.
       await _loadChart(
@@ -196,9 +196,9 @@ class PortfolioGrowthBloc
     PortfolioGrowthLoadRequested event, {
     required bool useCache,
   }) async {
-    final activeCoins = await coins.removeInactiveCoins(_sdk);
+    final chartCoins = useCache ? coins : await coins.removeInactiveCoins(_sdk);
     final chart = await _portfolioGrowthRepository.getPortfolioGrowthChart(
-      activeCoins,
+      chartCoins,
       fiatCoinId: event.fiatCoinId,
       walletId: event.walletId,
       useCache: useCache,
@@ -355,7 +355,10 @@ class PortfolioGrowthBloc
         );
         emit(
           GrowthChartLoadFailure(
-            error: TextError(error: 'Failed to load portfolio growth'),
+            error: TextError(
+              error: formatKdfUserFacingError(error),
+              technicalDetails: extractKdfTechnicalDetails(error),
+            ),
             selectedPeriod: event.selectedPeriod,
             totalCoins: totalCoins,
             coinsWithKnownBalance: coinsWithKnownBalance,

@@ -25,17 +25,17 @@ Add the flutter binaries subfolder `flutter/bin` to your system PATH. This proce
 
 For macOS:
 
-   ```bash
-   nano ~/.zshrc
-   export PATH="$PATH:$HOME/flutter/bin"
-   ```
+```bash
+nano ~/.zshrc
+export PATH="$PATH:$HOME/flutter/bin"
+```
 
 For Linux:
 
-   ```bash
-   vim ~/.bashrc
-   export PATH="$PATH:$HOME/flutter/bin"
-   ```
+```bash
+vim ~/.bashrc
+export PATH="$PATH:$HOME/flutter/bin"
+```
 
 For Windows, follow the instructions below (from [flutter.dev](https://docs.flutter.dev/get-started/install/windows#update-your-path)):
 

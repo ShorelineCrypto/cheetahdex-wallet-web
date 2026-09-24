@@ -1,7 +1,7 @@
 import 'dart:math' show Point;
 
 import 'package:decimal/decimal.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:komodo_cex_market_data/komodo_cex_market_data.dart'
     show
         CoinOhlc,
@@ -13,6 +13,7 @@ import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
 import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:komodo_persistence_layer/komodo_persistence_layer.dart';
 import 'package:logging/logging.dart';
+import 'package:web_dex/bloc/cex_market_data/cache_constants.dart';
 import 'package:web_dex/bloc/cex_market_data/charts.dart';
 import 'package:web_dex/bloc/cex_market_data/mockup/mock_portfolio_growth_repository.dart';
 import 'package:web_dex/bloc/cex_market_data/mockup/performance_mode.dart';
@@ -57,7 +58,7 @@ class PortfolioGrowthRepository {
     return PortfolioGrowthRepository(
       transactionHistoryRepo: transactionHistoryRepo,
       cacheProvider: HiveLazyBoxProvider<String, GraphCache>(
-        name: GraphType.balanceGrowth.tableName,
+        name: balanceGrowthCacheBoxName,
       ),
       coinsRepository: coinsRepository,
       sdk: sdk,
@@ -79,9 +80,12 @@ class PortfolioGrowthRepository {
   final _log = Logger('PortfolioGrowthRepository');
 
   static Future<void> ensureInitialized() async {
-    Hive
-      ..registerAdapter(GraphCacheAdapter())
-      ..registerAdapter(PointAdapter());
+    if (!Hive.isAdapterRegistered(graphCacheAdapterTypeId)) {
+      Hive.registerAdapter(GraphCacheAdapter());
+    }
+    if (!Hive.isAdapterRegistered(pointAdapterTypeId)) {
+      Hive.registerAdapter(PointAdapter());
+    }
   }
 
   /// Get the growth chart for a coin based on the transactions
@@ -157,10 +161,26 @@ class PortfolioGrowthRepository {
     );
 
     if (transactions.isEmpty) {
-      _log.fine('No transactions found for ${coin.id}, caching empty chart');
-      // Insert an empty chart into the cache to avoid fetching transactions
-      // again for each invocation. The assumption is that this function is
-      // called later with useCache set to false to fetch the transactions again
+      _log.fine('No transactions found for ${coin.id}');
+
+      final String compoundKey = GraphCache.getPrimaryKey(
+        coinId: coinId.id,
+        fiatCoinId: fiatCoinId,
+        graphType: GraphType.balanceGrowth,
+        walletId: walletId,
+        isHdWallet: currentUser.isHd,
+      );
+      final existingCache = await _graphCache.get(compoundKey);
+      if (existingCache != null && existingCache.graph.isNotEmpty) {
+        _log.fine(
+          'Keeping existing non-empty cache for ${coin.id} '
+          '(${existingCache.graph.length} points) '
+          'instead of overwriting with empty transactions',
+        );
+        methodStopwatch.stop();
+        return existingCache.graph;
+      }
+
       final cacheInsertStopwatch = Stopwatch()..start();
       await _graphCache.insert(
         GraphCache(

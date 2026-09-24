@@ -16,6 +16,7 @@ import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/data_from_service.dart';
 import 'package:web_dex/model/dex_form_error.dart';
 import 'package:web_dex/model/text_error.dart';
+import 'package:web_dex/shared/utils/kdf_error_display.dart';
 import 'package:web_dex/model/trade_preimage.dart';
 import 'package:web_dex/shared/utils/formatters.dart';
 import 'package:web_dex/shared/utils/utils.dart';
@@ -87,6 +88,10 @@ class TakerValidator {
       );
     } else if (error is TradePreimageTransportError) {
       return DexFormError(error: LocaleKeys.notEnoughBalanceForGasError.tr());
+    } else if (error is TradePreimageNoSuchCoinError) {
+      return DexFormError(
+        error: LocaleKeys.connectionToServersFailing.tr(args: [error.coin]),
+      );
     } else if (error is TradePreimageVolumeTooLowError) {
       return DexFormError(
         error: LocaleKeys.lowTradeVolumeError.tr(
@@ -296,7 +301,23 @@ class TakerValidator {
     }
   }
 
+  DataFromService<TradePreimage, BaseError>? get _cachedPreimage {
+    final preimage = state.tradePreimage;
+    if (preimage == null) return null;
+
+    final request = preimage.request;
+    if (state.sellCoin?.abbr != request.base) return null;
+    if (state.selectedOrder?.coin != request.rel) return null;
+    if (state.selectedOrder?.price != request.price) return null;
+    if (state.sellAmount != request.volume) return null;
+
+    return DataFromService(data: preimage);
+  }
+
   Future<DataFromService<TradePreimage, BaseError>> _getPreimageData() async {
+    final cached = _cachedPreimage;
+    if (cached != null) return cached;
+
     try {
       return await _dexRepo.getTradePreimage(
         state.sellCoin!.abbr,
@@ -313,7 +334,10 @@ class TakerValidator {
         isError: true,
       );
       return DataFromService(
-        error: TextError(error: 'Failed to request trade preimage'),
+        error: TextError(
+          error: formatKdfUserFacingError(e),
+          technicalDetails: extractKdfTechnicalDetails(e),
+        ),
       );
     }
   }

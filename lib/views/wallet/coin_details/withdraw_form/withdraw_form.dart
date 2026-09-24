@@ -1,5 +1,6 @@
 import 'dart:async' show Timer;
 
+import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,9 +9,14 @@ import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:komodo_ui/komodo_ui.dart';
 import 'package:komodo_ui_kit/komodo_ui_kit.dart';
 import 'package:web_dex/analytics/events/transaction_events.dart';
+import 'package:web_dex/app_config/app_config.dart';
 import 'package:web_dex/bloc/analytics/analytics_bloc.dart';
+import 'package:web_dex/common/screen.dart';
 import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
+import 'package:web_dex/bloc/coins_bloc/coins_bloc.dart';
 import 'package:web_dex/bloc/coins_bloc/asset_coin_extension.dart';
+import 'package:web_dex/bloc/transaction_history/transaction_history_bloc.dart';
+import 'package:web_dex/bloc/transaction_history/transaction_history_event.dart';
 import 'package:web_dex/bloc/withdraw_form/withdraw_form_bloc.dart';
 import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
@@ -20,17 +26,24 @@ import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/shared/utils/extensions/kdf_user_extensions.dart';
 import 'package:web_dex/shared/utils/utils.dart';
 import 'package:web_dex/shared/widgets/asset_amount_with_fiat.dart';
-import 'package:web_dex/shared/widgets/copied_text.dart' show CopiedTextV2;
+import 'package:web_dex/shared/widgets/copied_text.dart'
+    show CopiedText, CopiedTextV2;
 import 'package:web_dex/views/wallet/coin_details/withdraw_form/widgets/fill_form/fields/fields.dart';
 import 'package:web_dex/views/wallet/coin_details/withdraw_form/widgets/fill_form/fields/fill_form_memo.dart';
 import 'package:web_dex/views/wallet/coin_details/withdraw_form/widgets/trezor_withdraw_progress_dialog.dart';
 import 'package:web_dex/views/wallet/coin_details/withdraw_form/widgets/withdraw_form_header.dart';
-import 'package:decimal/decimal.dart';
-import 'package:web_dex/views/wallet/coin_details/transactions/transaction_details.dart';
 
 bool _isMemoSupportedProtocol(Asset asset) {
   final protocol = asset.protocol;
   return protocol is TendermintProtocol || protocol is ZhtlcProtocol;
+}
+
+AssetId _resolveFeeAssetId(BuildContext context, Asset asset, FeeInfo fee) {
+  if (fee.coin.isEmpty || fee.coin == asset.id.id) {
+    return asset.id;
+  }
+
+  return context.sdk.getSdkAsset(fee.coin).id;
 }
 
 class WithdrawForm extends StatefulWidget {
@@ -54,6 +67,7 @@ class _WithdrawFormState extends State<WithdrawForm> {
   late final _sdk = context.read<KomodoDefiSdk>();
   bool _suppressPreviewError = false;
   late final _mm2Api = context.read<Mm2Api>();
+  Timer? _transactionRefreshTimer;
 
   @override
   void initState() {
@@ -70,6 +84,7 @@ class _WithdrawFormState extends State<WithdrawForm> {
 
   @override
   void dispose() {
+    _transactionRefreshTimer?.cancel();
     _formBloc.close();
     super.dispose();
   }
@@ -81,7 +96,9 @@ class _WithdrawFormState extends State<WithdrawForm> {
       child: MultiBlocListener(
         listeners: [
           BlocListener<WithdrawFormBloc, WithdrawFormState>(
-            listenWhen: (prev, curr) => prev.previewError != curr.previewError && curr.previewError != null,
+            listenWhen: (prev, curr) =>
+                prev.previewError != curr.previewError &&
+                curr.previewError != null,
             listener: (context, state) async {
               // If a preview failed and the user entered essentially their entire
               // spendable balance (but didn't select Max), offer to deduct the fee
@@ -104,8 +121,14 @@ class _WithdrawFormState extends State<WithdrawForm> {
                 return diff <= epsilon;
               }
 
-              if (spendable != null && entered != null && amountsMatchWithTolerance(entered, spendable)) {
-                if (mounted) setState(() { _suppressPreviewError = true; });
+              if (spendable != null &&
+                  entered != null &&
+                  amountsMatchWithTolerance(entered, spendable)) {
+                if (mounted) {
+                  setState(() {
+                    _suppressPreviewError = true;
+                  });
+                }
                 final bloc = context.read<WithdrawFormBloc>();
                 final agreed = await showDialog<bool>(
                   context: context,
@@ -127,7 +150,11 @@ class _WithdrawFormState extends State<WithdrawForm> {
                   ),
                 );
 
-                if (mounted) setState(() { _suppressPreviewError = false; });
+                if (mounted) {
+                  setState(() {
+                    _suppressPreviewError = false;
+                  });
+                }
 
                 if (agreed == true) {
                   bloc.add(const WithdrawFormMaxAmountEnabled(true));
@@ -150,6 +177,23 @@ class _WithdrawFormState extends State<WithdrawForm> {
                   hdType: walletType,
                 ),
               );
+
+              final coin = context
+                  .read<CoinsBloc>()
+                  .state
+                  .coins
+                  .values
+                  .firstWhereOrNull((coin) => coin.id == state.asset.id);
+              if (coin == null) return;
+
+              _transactionRefreshTimer?.cancel();
+              _transactionRefreshTimer = Timer(const Duration(seconds: 2), () {
+                if (!mounted) return;
+                if (!hasTxHistorySupport(coin)) return;
+                context.read<TransactionHistoryBloc>().add(
+                  TransactionHistorySubscribe(coin: coin),
+                );
+              });
             },
           ),
           BlocListener<WithdrawFormBloc, WithdrawFormState>(
@@ -252,7 +296,9 @@ class WithdrawFormContent extends StatelessWidget {
   Widget _buildStep(WithdrawFormStep step) {
     switch (step) {
       case WithdrawFormStep.fill:
-        return WithdrawFormFillSection(suppressPreviewError: suppressPreviewError);
+        return WithdrawFormFillSection(
+          suppressPreviewError: suppressPreviewError,
+        );
       case WithdrawFormStep.confirm:
         return const WithdrawFormConfirmSection();
       case WithdrawFormStep.success:
@@ -373,192 +419,488 @@ class ZhtlcPreviewDelayNote extends StatelessWidget {
 }
 
 class WithdrawPreviewDetails extends StatelessWidget {
-  final WithdrawalPreview preview;
-  final double widthThreshold;
-  final double minPadding;
-  final double maxPadding;
+  const WithdrawPreviewDetails({required this.state, super.key});
 
-  const WithdrawPreviewDetails({
-    required this.preview,
-    super.key,
-    this.widthThreshold = 400,
-    this.minPadding = 2,
-    this.maxPadding = 16,
-  });
-
-  double _calculatePadding(double width) {
-    if (width >= widthThreshold) {
-      return maxPadding;
-    }
-
-    // Scale padding linearly based on width below threshold
-    final ratio = width / widthThreshold;
-    final scaledPadding = minPadding + (maxPadding - minPadding) * ratio;
-
-    return scaledPadding.clamp(minPadding, maxPadding);
-  }
+  final WithdrawFormState state;
 
   @override
   Widget build(BuildContext context) {
-    final sdk = context.sdk;
-
-    final assets = sdk.getSdkAsset(preview.coin);
-    final feeAssets = sdk.getSdkAsset(preview.fee.coin);
+    final preview = state.preview!;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final padding = _calculatePadding(constraints.maxWidth);
-        final useRowLayout = constraints.maxWidth >= widthThreshold;
+        final useWideLayout = constraints.maxWidth >= 560;
 
-        return Card(
-          child: Padding(
-            padding: EdgeInsets.all(padding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (useRowLayout)
-                  _buildRow(
-                    LocaleKeys.amount.tr(),
-                    AssetAmountWithFiat(
-                      assetId: assets.id,
-                      // netchange for withdrawals is expected to be negative
-                      // so we display the absolute value here to avoid
-                      // confusion with the negative sign
-                      amount: preview.balanceChanges.netChange.abs(),
-                      isAutoScrollEnabled: true,
-                    ),
-                  )
-                else ...[
-                  Text(
-                    LocaleKeys.amount.tr(),
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  AssetAmountWithFiat(
-                    assetId: assets.id,
-                    amount: preview.balanceChanges.netChange,
-                    isAutoScrollEnabled: true,
-                  ),
-                ],
-                const SizedBox(height: 16),
-                if (useRowLayout)
-                  _buildRow(
-                    LocaleKeys.fee.tr(),
-                    AssetAmountWithFiat(
-                      assetId: feeAssets.id,
-                      amount: preview.fee.totalFee,
-                      isAutoScrollEnabled: true,
-                    ),
-                  )
-                else ...[
-                  Text(
-                    LocaleKeys.fee.tr(),
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  AssetAmountWithFiat(
-                    assetId: feeAssets.id,
-                    amount: preview.fee.totalFee,
-                    isAutoScrollEnabled: true,
-                  ),
-                ],
-                const SizedBox(height: 16),
-                if (useRowLayout)
-                  _buildRow(
-                    LocaleKeys.recipientAddress.tr(),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final recipient in preview.to)
-                          CopiedTextV2(copiedValue: recipient, fontSize: 14),
-                      ],
-                    ),
-                  )
-                else ...[
-                  Text(
-                    LocaleKeys.recipientAddress.tr(),
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final recipient in preview.to)
-                        CopiedTextV2(copiedValue: recipient, fontSize: 14),
-                    ],
-                  ),
-                ],
-                if (preview.memo?.isNotEmpty ?? false) ...[
-                  const SizedBox(height: 16),
-                  if (useRowLayout)
-                    _buildRow(
-                      LocaleKeys.memo.tr(),
-                      Text(
-                        preview.memo!,
-                        textAlign: TextAlign.right,
-                        softWrap: true,
-                        overflow: TextOverflow.visible,
-                      ),
-                    )
-                  else ...[
-                    Text(
-                      LocaleKeys.memo.tr(),
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      preview.memo!,
-                      textAlign: TextAlign.left,
-                      softWrap: true,
-                      overflow: TextOverflow.visible,
-                    ),
-                  ],
-                ],
-              ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _WithdrawSectionCard(
+              child: _WithdrawPreviewSummary(
+                state: state,
+                preview: preview,
+                useWideLayout: useWideLayout,
+              ),
             ),
-          ),
+            const SizedBox(height: 16),
+            _WithdrawSectionCard(
+              child: _WithdrawPreviewDestination(
+                state: state,
+                preview: preview,
+                useWideLayout: useWideLayout,
+              ),
+            ),
+            if (preview.fee is FeeInfoTron) ...[
+              const SizedBox(height: 16),
+              _WithdrawTronDetailsCard(fee: preview.fee as FeeInfoTron),
+            ],
+          ],
         );
       },
     );
   }
+}
 
-  Widget _buildRow(String label, Widget value) {
+class _WithdrawPreviewSummary extends StatelessWidget {
+  const _WithdrawPreviewSummary({
+    required this.state,
+    required this.preview,
+    required this.useWideLayout,
+  });
+
+  final WithdrawFormState state;
+  final WithdrawalPreview preview;
+  final bool useWideLayout;
+
+  Color _warningBackground(BuildContext context) {
+    final theme = Theme.of(context);
+    return Colors.amber.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.22 : 0.16,
+    );
+  }
+
+  Color _warningForeground(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.brightness == Brightness.dark
+        ? Colors.amber.shade200
+        : Colors.amber.shade900;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final feeAssetId = _resolveFeeAssetId(context, state.asset, preview.fee);
+    final labelStyle = theme.textTheme.labelLarge?.copyWith(
+      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.72),
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.2,
+    );
+    final amountStyle = theme.textTheme.headlineSmall?.copyWith(
+      fontWeight: FontWeight.w700,
+      height: 1.1,
+    );
+    final feeStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w700,
+      height: 1.15,
+    );
+
+    final leftContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            AssetLogo.ofId(state.asset.id, size: 42),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(LocaleKeys.youSend.tr(), style: labelStyle),
+                  const SizedBox(height: 4),
+                  Text(
+                    state.asset.id.name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        AssetAmountWithFiat(
+          assetId: state.asset.id,
+          amount: preview.balanceChanges.netChange.abs(),
+          style: amountStyle,
+          isAutoScrollEnabled: false,
+        ),
+      ],
+    );
+
+    final rightContent = Container(
+      width: useWideLayout ? null : double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(LocaleKeys.fee.tr(), style: labelStyle)),
+              if (state.isFeePriceExpensive)
+                Chip(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  label: Text(
+                    LocaleKeys.withdrawHighFee.tr(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: _warningForeground(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  backgroundColor: _warningBackground(context),
+                  side: BorderSide.none,
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AssetAmountWithFiat(
+            assetId: feeAssetId,
+            amount: preview.fee.totalFee,
+            style: feeStyle,
+            isAutoScrollEnabled: false,
+          ),
+        ],
+      ),
+    );
+
+    if (!useWideLayout) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [leftContent, const SizedBox(height: 16), rightContent],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 2, child: Text(label)),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 3,
-          child: Align(alignment: Alignment.centerRight, child: value),
-        ),
+        Expanded(flex: 7, child: leftContent),
+        const SizedBox(width: 16),
+        Expanded(flex: 4, child: rightContent),
       ],
     );
   }
 }
 
-class WithdrawResultDetails extends StatelessWidget {
-  final WithdrawalResult result;
+class _WithdrawPreviewDestination extends StatelessWidget {
+  const _WithdrawPreviewDestination({
+    required this.state,
+    required this.preview,
+    required this.useWideLayout,
+  });
 
-  const WithdrawResultDetails({required this.result, super.key});
+  final WithdrawFormState state;
+  final WithdrawalPreview preview;
+  final bool useWideLayout;
+
+  Widget _buildAddressCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Widget child,
+  }) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.primary.withValues(alpha: 0.04),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.textTheme.bodySmall?.color?.withValues(
+                    alpha: 0.72,
+                  ),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSourceAddress(BuildContext context) {
+    final sourceAddress = state.selectedSourceAddress?.address;
+    final theme = Theme.of(context);
+
+    if (sourceAddress == null || sourceAddress.isEmpty) {
+      return Text(
+        state.asset.id.name,
+        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+      );
+    }
+
+    return CopiedTextV2(
+      copiedValue: sourceAddress,
+      fontSize: 13,
+      iconSize: 14,
+      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+      textColor: theme.textTheme.bodyLarge?.color,
+    );
+  }
+
+  Widget _buildRecipientAddresses(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final recipient in preview.to)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: CopiedTextV2(
+              copiedValue: recipient,
+              fontSize: 13,
+              iconSize: 14,
+              backgroundColor: theme.colorScheme.primary.withValues(
+                alpha: 0.08,
+              ),
+              textColor: theme.textTheme.bodyLarge?.color,
+            ),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableText(
-              LocaleKeys.transactionHash.tr(),
-              style: Theme.of(context).textTheme.bodySmall,
+    final theme = Theme.of(context);
+    final destinationTitle = Text(
+      LocaleKeys.withdrawDestination.tr(),
+      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+    );
+    final routeIcon = Icon(
+      useWideLayout ? Icons.arrow_forward_rounded : Icons.south_rounded,
+      color: theme.colorScheme.primary,
+      size: 24,
+    );
+
+    final sourceCard = _buildAddressCard(
+      context,
+      icon: Icons.account_balance_wallet_outlined,
+      label: LocaleKeys.from.tr(),
+      child: _buildSourceAddress(context),
+    );
+    final recipientCard = _buildAddressCard(
+      context,
+      icon: Icons.place_outlined,
+      label: LocaleKeys.to.tr(),
+      child: _buildRecipientAddresses(context),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        destinationTitle,
+        const SizedBox(height: 16),
+        if (useWideLayout)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: sourceCard),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: routeIcon,
+              ),
+              Expanded(child: recipientCard),
+            ],
+          )
+        else ...[
+          sourceCard,
+          const SizedBox(height: 12),
+          Center(child: routeIcon),
+          const SizedBox(height: 12),
+          recipientCard,
+        ],
+        if (preview.memo?.isNotEmpty ?? false) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer.withValues(
+                alpha: 0.35,
+              ),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 4),
-            SelectableText(result.txHash),
-            // Add more result details as needed
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LocaleKeys.memo.tr(),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.textTheme.bodySmall?.color?.withValues(
+                      alpha: 0.72,
+                    ),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SelectableText(preview.memo!, style: theme.textTheme.bodyLarge),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _WithdrawTronDetailsCard extends StatelessWidget {
+  const _WithdrawTronDetailsCard({required this.fee});
+
+  final FeeInfoTron fee;
+
+  String _formatDecimal(Decimal value, {int precision = 8}) {
+    return value.toStringAsFixed(precision).replaceAll(RegExp(r'\.?0+$'), '');
+  }
+
+  Widget _buildDetailRow(
+    BuildContext context, {
+    required String label,
+    required String value,
+    TextStyle? valueStyle,
+  }) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 4,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: valueStyle ?? theme.textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final totalFee = fee.totalFee;
+    final paidInCoin = LocaleKeys.withdrawTronFeePaidIn.tr(args: [fee.coin]);
+    final bandwidthSource = fee.bandwidthFee > Decimal.zero
+        ? paidInCoin
+        : LocaleKeys.withdrawTronBandwidthCovered.tr();
+    final energySource = fee.energyUsed == 0
+        ? LocaleKeys.withdrawTronResourceNotUsed.tr()
+        : fee.energyFee > Decimal.zero
+        ? paidInCoin
+        : LocaleKeys.withdrawTronEnergyCovered.tr();
+    final chargeSummary = totalFee > Decimal.zero
+        ? LocaleKeys.withdrawTronFeeSummaryCharged.tr(
+            args: [_formatDecimal(totalFee), fee.coin],
+          )
+        : LocaleKeys.withdrawTronFeeSummaryCovered.tr(args: [fee.coin]);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          title: Text(
+            LocaleKeys.withdrawNetworkDetails.tr(),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(chargeSummary, style: theme.textTheme.bodySmall),
+          ),
+          children: [
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronBandwidthUsed.tr(),
+              value: '${fee.bandwidthUsed}',
+            ),
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronBandwidthFee.tr(),
+              value: '${_formatDecimal(fee.bandwidthFee)} ${fee.coin}',
+            ),
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronBandwidthSource.tr(),
+              value: bandwidthSource,
+              valueStyle: theme.textTheme.bodySmall,
+            ),
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronEnergyUsed.tr(),
+              value: '${fee.energyUsed}',
+            ),
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronEnergyFee.tr(),
+              value: '${_formatDecimal(fee.energyFee)} ${fee.coin}',
+            ),
+            if (fee.accountCreationFee != null)
+              _buildDetailRow(
+                context,
+                label: LocaleKeys.withdrawTronAccountActivationFee.tr(),
+                value: '${_formatDecimal(fee.accountCreationFee!)} ${fee.coin}',
+              ),
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronEnergySource.tr(),
+              value: energySource,
+              valueStyle: theme.textTheme.bodySmall,
+            ),
+            _buildDetailRow(
+              context,
+              label: LocaleKeys.withdrawTronFeeSummary.tr(),
+              value: chargeSummary,
+              valueStyle: theme.textTheme.bodySmall,
+            ),
           ],
         ),
       ),
@@ -566,15 +908,33 @@ class WithdrawResultDetails extends StatelessWidget {
   }
 }
 
+class _WithdrawSectionCard extends StatelessWidget {
+  const _WithdrawSectionCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(padding: const EdgeInsets.all(20), child: child),
+    );
+  }
+}
+
 class WithdrawFormFillSection extends StatelessWidget {
   final bool suppressPreviewError;
 
-  const WithdrawFormFillSection({required this.suppressPreviewError, super.key});
+  const WithdrawFormFillSection({
+    required this.suppressPreviewError,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<WithdrawFormBloc, WithdrawFormState>(
       builder: (context, state) {
+        final isEditingLocked = state.isSending;
         final isSourceInputEnabled =
             // Enabled if the asset has multiple source addresses or if there is
             // no selected address and pubkeys are available.
@@ -585,111 +945,136 @@ class WithdrawFormFillSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SourceAddressField(
-              asset: state.asset,
-              pubkeys: state.pubkeys,
-              selectedAddress: state.selectedSourceAddress,
-              isLoading: state.pubkeys?.isEmpty ?? true,
-              onChanged: isSourceInputEnabled
-                  ? (address) => address == null
-                        ? null
-                        : context.read<WithdrawFormBloc>().add(
-                            WithdrawFormSourceChanged(address),
-                          )
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            RecipientAddressWithNotification(
-              address: state.recipientAddress,
-              isMixedAddress: state.isMixedCaseAddress,
-              onChanged: (value) => context.read<WithdrawFormBloc>().add(
-                WithdrawFormRecipientChanged(value),
-              ),
-              onQrScanned: (value) => context.read<WithdrawFormBloc>().add(
-                WithdrawFormRecipientChanged(value),
-              ),
-              errorText: state.recipientAddressError == null
-                  ? null
-                  : () => state.recipientAddressError?.message,
-            ),
-            const SizedBox(height: 16),
-            if (state.asset.protocol is TendermintProtocol) ...[
-              const IbcTransferField(),
-              if (state.isIbcTransfer) ...[
-                const SizedBox(height: 16),
-                const IbcChannelField(),
-              ],
-              const SizedBox(height: 16),
-            ],
-            WithdrawAmountField(
-              asset: state.asset,
-              amount: state.amount,
-              isMaxAmount: state.isMaxAmount,
-              onChanged: (value) => context.read<WithdrawFormBloc>().add(
-                WithdrawFormAmountChanged(value),
-              ),
-              onMaxToggled: (value) => context.read<WithdrawFormBloc>().add(
-                WithdrawFormMaxAmountEnabled(value),
-              ),
-              amountError: state.amountError?.message,
-            ),
-            if (state.isCustomFeeSupported) ...[
-              const SizedBox(height: 16),
-              Row(
+            IgnorePointer(
+              key: const Key('withdraw-form-fill-input-lock'),
+              ignoring: isEditingLocked,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Checkbox(
-                    value: state.isCustomFee,
-                    onChanged: (enabled) => context
-                        .read<WithdrawFormBloc>()
-                        .add(WithdrawFormCustomFeeEnabled(enabled ?? false)),
+                  SourceAddressField(
+                    asset: state.asset,
+                    pubkeys: state.pubkeys,
+                    selectedAddress: state.selectedSourceAddress,
+                    isLoading: state.pubkeys?.isEmpty ?? true,
+                    onChanged: isSourceInputEnabled
+                        ? (address) => address == null
+                              ? null
+                              : context.read<WithdrawFormBloc>().add(
+                                  WithdrawFormSourceChanged(address),
+                                )
+                        : null,
                   ),
-                  Text(LocaleKeys.customNetworkFee.tr()),
+                  const SizedBox(height: 16),
+                  RecipientAddressWithNotification(
+                    address: state.recipientAddress,
+                    isMixedAddress: state.isMixedCaseAddress,
+                    onChanged: (value) => context.read<WithdrawFormBloc>().add(
+                      WithdrawFormRecipientChanged(value),
+                    ),
+                    onQrScanned: (value) => context
+                        .read<WithdrawFormBloc>()
+                        .add(WithdrawFormRecipientChanged(value)),
+                    errorText: state.recipientAddressError == null
+                        ? null
+                        : () => state.recipientAddressError?.message,
+                  ),
+                  const SizedBox(height: 16),
+                  if (state.asset.protocol is TendermintProtocol) ...[
+                    const IbcTransferField(),
+                    if (state.isIbcTransfer) ...[
+                      const SizedBox(height: 16),
+                      const IbcChannelField(),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+                  WithdrawAmountField(
+                    asset: state.asset,
+                    amount: state.amount,
+                    isMaxAmount: state.isMaxAmount,
+                    onChanged: (value) => context.read<WithdrawFormBloc>().add(
+                      WithdrawFormAmountChanged(value),
+                    ),
+                    onMaxToggled: (value) => context
+                        .read<WithdrawFormBloc>()
+                        .add(WithdrawFormMaxAmountEnabled(value)),
+                    amountError: state.amountError?.message,
+                  ),
+                  if (state.isPriorityFeeSupported) ...[
+                    const SizedBox(height: 16),
+                    WithdrawalPrioritySelector(
+                      feeOptions: state.feeOptions,
+                      selectedPriority: state.selectedFeePriority,
+                      onPriorityChanged: (priority) {
+                        context.read<WithdrawFormBloc>().add(
+                          WithdrawFormFeePriorityChanged(priority),
+                        );
+                      },
+                      onCustomFeeSelected: () {
+                        context.read<WithdrawFormBloc>().add(
+                          const WithdrawFormCustomFeeEnabled(true),
+                        );
+                      },
+                    ),
+                  ] else if (state.isCustomFeeSupported) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: state.isCustomFee,
+                          onChanged: (enabled) =>
+                              context.read<WithdrawFormBloc>().add(
+                                WithdrawFormCustomFeeEnabled(enabled ?? false),
+                              ),
+                        ),
+                        Text(LocaleKeys.customNetworkFee.tr()),
+                      ],
+                    ),
+                  ],
+                  if (state.isCustomFeeSupported &&
+                      state.isCustomFee &&
+                      state.customFee != null) ...[
+                    const SizedBox(height: 8),
+                    FeeInfoInput(
+                      asset: state.asset,
+                      selectedFee: state.customFee!,
+                      isCustomFee: true, // indicates user can edit it
+                      onFeeSelected: (newFee) {
+                        context.read<WithdrawFormBloc>().add(
+                          WithdrawFormCustomFeeChanged(newFee!),
+                        );
+                      },
+                    ),
+                    if (state.customFeeError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          state.customFeeError!.message,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 16),
+                  if (_isMemoSupportedProtocol(state.asset)) ...[
+                    WithdrawMemoField(
+                      memo: state.memo,
+                      onChanged: (value) => context
+                          .read<WithdrawFormBloc>()
+                          .add(WithdrawFormMemoChanged(value)),
+                    ),
+                  ],
                 ],
               ),
-              if (state.isCustomFee && state.customFee != null) ...[
-                const SizedBox(height: 8),
-
-                FeeInfoInput(
-                  asset: state.asset,
-                  selectedFee: state.customFee!,
-                  isCustomFee: true, // indicates user can edit it
-                  onFeeSelected: (newFee) {
-                    context.read<WithdrawFormBloc>().add(
-                      WithdrawFormCustomFeeChanged(newFee!),
-                    );
-                  },
-                ),
-
-                // If the bloc has an error for custom fees:
-                if (state.customFeeError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      state.customFeeError!.message,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-              ],
-            ],
-            const SizedBox(height: 16),
-            if (_isMemoSupportedProtocol(state.asset)) ...[
-              WithdrawMemoField(
-                memo: state.memo,
-                onChanged: (value) => context.read<WithdrawFormBloc>().add(
-                  WithdrawFormMemoChanged(value),
-                ),
-              ),
-            ],
+            ),
             const SizedBox(height: 24),
             // TODO! Refactor to use Formz and replace with the appropriate
             // error state value.
             if (state.hasPreviewError && !suppressPreviewError)
               ErrorDisplay(
-                message: LocaleKeys.withdrawPreviewError.tr(),
-                detailedMessage: state.previewError!.message,
+                message: state.previewError!.message,
+                detailedMessage: state.previewError!.technicalDetails,
               ),
             const SizedBox(height: 16),
             PreviewWithdrawButton(
@@ -729,6 +1114,154 @@ class WithdrawFormFillSection extends StatelessWidget {
 class WithdrawFormConfirmSection extends StatelessWidget {
   const WithdrawFormConfirmSection({super.key});
 
+  Color _warningBackground(BuildContext context) {
+    final theme = Theme.of(context);
+    return Colors.amber.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.22 : 0.16,
+    );
+  }
+
+  Color _warningForeground(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.brightness == Brightness.dark
+        ? Colors.amber.shade200
+        : Colors.amber.shade900;
+  }
+
+  Widget? _buildStatusBanner(BuildContext context, WithdrawFormState state) {
+    if (!state.isTronAsset &&
+        !state.isPreviewRefreshing &&
+        state.confirmStepError == null) {
+      return null;
+    }
+
+    final theme = Theme.of(context);
+    late final Color backgroundColor;
+    late final Color foregroundColor;
+    late final IconData icon;
+    late final String message;
+    final showSpinner = state.isPreviewRefreshing;
+
+    if (state.isPreviewRefreshing) {
+      backgroundColor = theme.colorScheme.secondaryContainer;
+      foregroundColor = theme.colorScheme.onSecondaryContainer;
+      icon = Icons.refresh_rounded;
+      message = LocaleKeys.withdrawPreviewRefreshing.tr();
+    } else if (state.confirmStepError != null || state.isPreviewExpired) {
+      backgroundColor = theme.colorScheme.errorContainer;
+      foregroundColor = theme.colorScheme.onErrorContainer;
+      icon = Icons.warning_amber_rounded;
+      message =
+          state.confirmStepError?.message ??
+          LocaleKeys.withdrawTronPreviewExpired.tr();
+    } else if (state.previewSecondsRemaining != null) {
+      final isExpiringSoon = state.previewSecondsRemaining! <= 10;
+      backgroundColor = isExpiringSoon
+          ? _warningBackground(context)
+          : theme.colorScheme.primaryContainer;
+      foregroundColor = isExpiringSoon
+          ? _warningForeground(context)
+          : theme.colorScheme.onPrimaryContainer;
+      icon = Icons.schedule_rounded;
+      message = LocaleKeys.withdrawPreviewExpiresIn.tr(
+        args: [state.previewSecondsRemaining.toString()],
+      );
+    } else {
+      return null;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (showSpinner)
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: foregroundColor,
+              ),
+            )
+          else
+            Icon(icon, color: foregroundColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: foregroundColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions(
+    BuildContext context, {
+    required WithdrawFormState state,
+    required bool hasExpiredPreviewAction,
+    required bool isSubmitDisabled,
+  }) {
+    final backButton = OutlinedButton(
+      onPressed: state.isSending || state.isPreviewRefreshing
+          ? null
+          : () => context.read<WithdrawFormBloc>().add(
+              const WithdrawFormStepReverted(),
+            ),
+      child: Text(LocaleKeys.back.tr()),
+    );
+    final primaryButton = FilledButton(
+      onPressed: hasExpiredPreviewAction
+          ? () {
+              context.read<WithdrawFormBloc>().add(
+                const WithdrawFormTronPreviewRefreshRequested(),
+              );
+            }
+          : isSubmitDisabled
+          ? null
+          : () {
+              context.read<WithdrawFormBloc>().add(
+                const WithdrawFormSubmitted(),
+              );
+            },
+      child: state.isSending || state.isPreviewRefreshing
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(
+              hasExpiredPreviewAction
+                  ? LocaleKeys.withdrawTronPreviewRegenerate.tr()
+                  : LocaleKeys.send.tr(),
+            ),
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [primaryButton, const SizedBox(height: 12), backButton],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: backButton),
+        const SizedBox(width: 16),
+        Expanded(child: primaryButton),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<WithdrawFormBloc, WithdrawFormState>(
@@ -737,41 +1270,32 @@ class WithdrawFormConfirmSection extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
+        final hasExpiredPreviewAction =
+            state.isTronAsset &&
+            !state.isPreviewRefreshing &&
+            (state.isPreviewExpired || state.hasConfirmStepError);
+        final isSubmitDisabled =
+            state.isSending ||
+            state.isPreviewRefreshing ||
+            (state.isTronAsset &&
+                (state.previewSecondsRemaining == null ||
+                    state.previewSecondsRemaining == 0));
+        final statusBanner = _buildStatusBanner(context, state);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            WithdrawPreviewDetails(preview: state.preview!),
+            WithdrawPreviewDetails(state: state),
+            if (statusBanner != null) ...[
+              const SizedBox(height: 16),
+              statusBanner,
+            ],
             const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => context.read<WithdrawFormBloc>().add(
-                      const WithdrawFormCancelled(),
-                    ),
-                    child: Text(LocaleKeys.back.tr()),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: state.isSending
-                        ? null
-                        : () {
-                            context.read<WithdrawFormBloc>().add(
-                              const WithdrawFormSubmitted(),
-                            );
-                          },
-                    child: state.isSending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(LocaleKeys.send.tr()),
-                  ),
-                ),
-              ],
+            _buildActions(
+              context,
+              state: state,
+              hasExpiredPreviewAction: hasExpiredPreviewAction,
+              isSubmitDisabled: isSubmitDisabled,
             ),
           ],
         );
@@ -789,29 +1313,13 @@ class WithdrawFormSuccessSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<WithdrawFormBloc, WithdrawFormState>(
       builder: (context, state) {
-        // Build a temporary Transaction model matching history view expectations
         final result = state.result!;
-        final tx = Transaction(
-          id: result.txHash,
-          internalId: result.txHash,
-          assetId: state.asset.id,
-          balanceChanges: result.balanceChanges,
-          // Show as unconfirmed initially
-          timestamp: DateTime.fromMillisecondsSinceEpoch(0),
-          confirmations: 0,
-          blockHeight: 0,
-          from: state.selectedSourceAddress != null
-              ? [state.selectedSourceAddress!.address]
-              : <String>[],
-          to: [result.toAddress],
-          txHash: result.txHash,
-          fee: result.fee,
-          memo: state.memo,
-        );
 
-        return TransactionDetails(
-          transaction: tx,
-          coin: state.asset.toCoin(),
+        return WithdrawSuccessReceipt(
+          asset: state.asset,
+          result: result,
+          sourceAddress: state.selectedSourceAddress?.address,
+          memo: state.memo,
           onClose: onDone,
         );
       },
@@ -819,75 +1327,271 @@ class WithdrawFormSuccessSection extends StatelessWidget {
   }
 }
 
-class WithdrawResultCard extends StatelessWidget {
-  final WithdrawalResult result;
-  final Asset asset;
-
-  const WithdrawResultCard({
-    required this.result,
+class WithdrawSuccessReceipt extends StatelessWidget {
+  const WithdrawSuccessReceipt({
     required this.asset,
+    required this.result,
+    required this.onClose,
+    this.sourceAddress,
+    this.memo,
     super.key,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final maybeTxEplorer = asset.protocol.explorerTxUrl(result.txHash);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHashSection(context),
-            const Divider(height: 32),
-            _buildNetworkSection(context),
-            if (maybeTxEplorer != null) ...[
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: () => openUrl(maybeTxEplorer),
-                icon: const Icon(Icons.open_in_new),
-                label: Text(LocaleKeys.viewOnExplorer.tr()),
-              ),
-            ],
-          ],
-        ),
-      ),
+  final Asset asset;
+  final WithdrawalResult result;
+  final String? sourceAddress;
+  final String? memo;
+  final VoidCallback onClose;
+
+  Widget _buildActions(BuildContext context, Uri? explorerUrl) {
+    final doneButton = explorerUrl == null
+        ? FilledButton(onPressed: onClose, child: Text(LocaleKeys.done.tr()))
+        : OutlinedButton(onPressed: onClose, child: Text(LocaleKeys.done.tr()));
+
+    if (explorerUrl == null) {
+      return SizedBox(width: double.infinity, child: doneButton);
+    }
+
+    final explorerButton = FilledButton.icon(
+      onPressed: () => openUrl(explorerUrl),
+      icon: const Icon(Icons.open_in_new_rounded),
+      label: Text(LocaleKeys.viewOnExplorer.tr()),
     );
-  }
 
-  Widget _buildHashSection(BuildContext context) {
-    final theme = Theme.of(context);
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [explorerButton, const SizedBox(height: 12), doneButton],
+      );
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(
-          LocaleKeys.transactionHash.tr(),
-          style: theme.textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        SelectableText(
-          result.txHash,
-          style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'Mono'),
-        ),
+        Expanded(child: explorerButton),
+        const SizedBox(width: 16),
+        Expanded(child: doneButton),
       ],
     );
   }
 
-  Widget _buildNetworkSection(BuildContext context) {
+  Widget _buildDetailItem(
+    BuildContext context, {
+    required String label,
+    required Widget child,
+  }) {
     final theme = Theme.of(context);
 
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.72),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final explorerUrl = asset.protocol.explorerTxUrl(result.txHash);
+    final feeAssetId = _resolveFeeAssetId(context, asset, result.fee);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(LocaleKeys.network.tr(), style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            AssetLogo.ofId(asset.id),
-            const SizedBox(width: 8),
-            Text(asset.id.name, style: theme.textTheme.bodyLarge),
-          ],
+        _WithdrawSectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.check_circle_rounded,
+                size: 64,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                LocaleKeys.successPageHeadline.tr(),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              AssetLogo.ofId(asset.id, size: 52),
+              const SizedBox(height: 12),
+              Center(
+                child: AssetAmountWithFiat(
+                  assetId: asset.id,
+                  amount: result.amount,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                  isAutoScrollEnabled: false,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                asset.id.name,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  LocaleKeys.recipientAddress.tr(),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.textTheme.bodySmall?.color?.withValues(
+                      alpha: 0.72,
+                    ),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CopiedTextV2(
+                  copiedValue: result.toAddress,
+                  fontSize: 13,
+                  iconSize: 14,
+                  backgroundColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.08,
+                  ),
+                  textColor: theme.textTheme.bodyLarge?.color,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Chip(
+                  padding: EdgeInsets.zero,
+                  avatar: Icon(
+                    Icons.schedule_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                  label: Text(
+                    LocaleKeys.withdrawAwaitingConfirmations.tr(),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  side: BorderSide.none,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildActions(context, explorerUrl),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Theme(
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              title: Text(
+                LocaleKeys.technicalDetails.tr(),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              children: [
+                _buildDetailItem(
+                  context,
+                  label: LocaleKeys.transactionHash.tr(),
+                  child: CopiedText(
+                    copiedValue: result.txHash,
+                    isTruncated: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                if (sourceAddress?.isNotEmpty ?? false)
+                  _buildDetailItem(
+                    context,
+                    label: LocaleKeys.from.tr(),
+                    child: CopiedText(
+                      copiedValue: sourceAddress!,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                _buildDetailItem(
+                  context,
+                  label: LocaleKeys.to.tr(),
+                  child: CopiedText(
+                    copiedValue: result.toAddress,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                _buildDetailItem(
+                  context,
+                  label: LocaleKeys.fee.tr(),
+                  child: AssetAmountWithFiat(
+                    assetId: feeAssetId,
+                    amount: result.fee.totalFee,
+                    isAutoScrollEnabled: false,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (memo?.isNotEmpty ?? false)
+                  _buildDetailItem(
+                    context,
+                    label: LocaleKeys.memo.tr(),
+                    child: SelectableText(
+                      memo!,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ),
+                _buildDetailItem(
+                  context,
+                  label: LocaleKeys.network.tr(),
+                  child: Row(
+                    children: [
+                      AssetLogo.ofId(asset.id, size: 28),
+                      const SizedBox(width: 10),
+                      Text(
+                        asset.id.name,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -897,19 +1601,52 @@ class WithdrawResultCard extends StatelessWidget {
 class WithdrawFormFailedSection extends StatelessWidget {
   const WithdrawFormFailedSection({super.key});
 
+  static Future<void> _openSupportContact() async {
+    try {
+      await openUrl(discordInviteUrl);
+    } catch (_) {
+      // Avoid surfacing launch failures as another error state.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return BlocBuilder<WithdrawFormBloc, WithdrawFormState>(
       builder: (context, state) {
+        final supportLink = TextButton(
+          onPressed: _openSupportContact,
+          child: Text(LocaleKeys.support.tr()),
+        );
+
+        final backButton = OutlinedButton(
+          onPressed: () => context.read<WithdrawFormBloc>().add(
+            const WithdrawFormStepReverted(),
+          ),
+          child: Text(LocaleKeys.back.tr()),
+        );
+
+        final tryAgainButton = FilledButton(
+          onPressed: () =>
+              context.read<WithdrawFormBloc>().add(const WithdrawFormReset()),
+          child: Text(LocaleKeys.tryAgainButton.tr()),
+        );
+
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
+            Center(
+              child: Icon(
+                Icons.error_outline,
+                size: 64,
+                color: theme.colorScheme.error,
+              ),
+            ),
             const SizedBox(height: 24),
             Text(
               LocaleKeys.transactionFailed.tr(),
-              style: theme.textTheme.headlineMedium?.copyWith(
+              style: theme.textTheme.headlineSmall?.copyWith(
                 color: theme.colorScheme.error,
               ),
               textAlign: TextAlign.center,
@@ -917,25 +1654,36 @@ class WithdrawFormFailedSection extends StatelessWidget {
             const SizedBox(height: 24),
             if (state.transactionError != null)
               WithdrawErrorCard(error: state.transactionError!),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton(
-                  onPressed: () => context.read<WithdrawFormBloc>().add(
-                    const WithdrawFormStepReverted(),
-                  ),
-                  child: Text(LocaleKeys.back.tr()),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                LocaleKeys.errorTryAgainSupportHint.tr(),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 16),
-                FilledButton(
-                  onPressed: () => context.read<WithdrawFormBloc>().add(
-                    const WithdrawFormReset(),
-                  ),
-                  child: Text(LocaleKeys.tryAgain.tr()),
-                ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
+            const SizedBox(height: 24),
+            if (isMobile) ...[
+              backButton,
+              const SizedBox(height: 12),
+              tryAgainButton,
+              const SizedBox(height: 8),
+              Center(child: supportLink),
+            ] else ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: backButton),
+                  const SizedBox(width: 16),
+                  Expanded(child: tryAgainButton),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Center(child: supportLink),
+            ],
           ],
         );
       },
@@ -952,6 +1700,12 @@ class WithdrawErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final rawDetails = error is TextError
+        ? (error as TextError).technicalDetails
+        : null;
+    final hasDistinctDetails =
+        rawDetails != null && rawDetails != error.message;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -964,17 +1718,20 @@ class WithdrawErrorCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             SelectableText(error.message, style: theme.textTheme.bodyMedium),
-            if (error is TextError) ...[
+            if (hasDistinctDetails) ...[
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
               ExpansionTile(
                 title: Text(LocaleKeys.technicalDetails.tr()),
                 children: [
-                  SelectableText(
-                    (error as TextError).error,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'Mono',
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: SelectableText(
+                      rawDetails,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'Mono',
+                      ),
                     ),
                   ),
                 ],

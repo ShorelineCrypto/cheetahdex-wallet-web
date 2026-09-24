@@ -8,6 +8,7 @@ When building the Cheetahdex Wallet for production, **always** use the following
 --enforce-lockfile  # When running 'flutter pub get'
 --no-pub            # When running 'flutter build'
 --no-web-resources-cdn  # When building for web
+--wasm              # Recommended for Flutter web WASM builds
 ```
 
 ## Security Justification
@@ -69,13 +70,13 @@ For web builds:
 
 ```bash
 flutter pub get --enforce-lockfile
-flutter build web --csp --no-web-resources-cdn --no-pub
+flutter build web --csp --no-web-resources-cdn --no-pub --wasm
 ```
 
 For Docker builds:
 
 ```bash
-docker run --rm -v ./build:/app/build komodo/komodo-wallet:latest bash -c "flutter pub get --enforce-lockfile && flutter build apk --no-pub --release"
+docker run --rm -v ./build:/app/build gleec/gleec-wallet:latest bash -c "flutter pub get --enforce-lockfile && flutter build apk --no-pub --release"
 ```
 
 ## Compliance and Audit

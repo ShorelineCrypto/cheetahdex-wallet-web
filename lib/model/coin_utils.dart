@@ -13,6 +13,10 @@ import 'package:web_dex/shared/utils/utils.dart';
 List<Coin> sortByPriorityAndBalance(List<Coin> coins, KomodoDefiSdk sdk) {
   final List<Coin> list = List.of(coins);
   list.sort((a, b) {
+    final bool aIsParent = a.parentCoin == null;
+    final bool bIsParent = b.parentCoin == null;
+    if (aIsParent != bIsParent) return aIsParent ? -1 : 1;
+
     final double usdBalanceA = a.lastKnownUsdBalance(sdk) ?? 0.00;
     final double usdBalanceB = b.lastKnownUsdBalance(sdk) ?? 0.00;
 
@@ -38,6 +42,10 @@ List<Coin> sortByPriorityAndBalance(List<Coin> coins, KomodoDefiSdk sdk) {
 List<Coin> sortFiatBalance(List<Coin> coins, KomodoDefiSdk sdk) {
   final List<Coin> list = List.of(coins);
   list.sort((a, b) {
+    final bool aIsParent = a.parentCoin == null;
+    final bool bIsParent = b.parentCoin == null;
+    if (aIsParent != bIsParent) return aIsParent ? -1 : 1;
+
     final double usdBalanceA = a.lastKnownUsdBalance(sdk) ?? 0.00;
     final double usdBalanceB = b.lastKnownUsdBalance(sdk) ?? 0.00;
     if (usdBalanceA > usdBalanceB) return -1;
@@ -133,8 +141,14 @@ String getCoinTypeName(CoinType type, [String? symbol]) {
     return 'Native';
   }
   switch (type) {
+    case CoinType.trx:
+      return 'TRON';
+    case CoinType.trc20:
+      return 'TRC-20';
     case CoinType.erc20:
       return 'ERC-20';
+    case CoinType.grc20:
+      return 'GRC-20';
     case CoinType.bep20:
       return 'BEP-20';
     case CoinType.qrc20:
@@ -182,11 +196,17 @@ String getCoinTypeName(CoinType type, [String? symbol]) {
 
 bool isParentCoin(CoinType type, String symbol) {
   switch (type) {
+    case CoinType.trx:
+      return symbol == 'TRX';
+    case CoinType.trc20:
+      return false;
     case CoinType.utxo:
     case CoinType.tendermint:
       return true;
     case CoinType.erc20:
       return symbol == 'ETH';
+    case CoinType.grc20:
+      return symbol == 'GLEECT';
     case CoinType.bep20:
       return symbol == 'BNB';
     case CoinType.avx20:

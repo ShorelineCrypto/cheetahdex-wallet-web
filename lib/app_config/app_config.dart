@@ -10,12 +10,14 @@ const double mainLayoutPadding = 29;
 const double appBarHeight = 70;
 const int scaleOnInfinitePrecision = 20; // ETH has 18 decimals, so use more
 const String allWalletsStorageKey = 'all-wallets';
-const String defaultDexCoin = 'KMD';
+const String defaultDexCoin = 'NENG';
 const String trezorWalletNamePrefix = 'my trezor';
 const List<Locale> localeList = [Locale('en')];
 const String assetsPath = 'assets';
 const String coinsAssetsPath = 'packages/komodo_defi_framework/assets';
 
+// Note: GLEEC does not appear to have a public Discord server.
+// Using info@gleec.com as primary support contact.
 final Uri discordSupportChannelUrl = Uri.parse(
   'https://discord.com/channels/412898016371015680/429676282196787200',
 );
@@ -33,6 +35,11 @@ const bool isBitrefillIntegrationEnabled = false;
 ///! Platform and its legal entities do not condone the use of this app for
 ///! trading purposes where it is not legally compliant.
 const bool kShowTradingWarning = false;
+
+/// Controls whether the HD mode warning banner is shown on the wallet page.
+/// TODO: Replace this static flag with conditional visibility once we can
+/// determine whether the wallet has previously been used in legacy mode.
+const bool kShowHdWalletWarningBanner = false;
 
 const Duration kPerformanceLogInterval = Duration(minutes: 1);
 
@@ -72,6 +79,7 @@ Map<String, int> priorityCoinsAbbrMap = {
   'USDT-ERC20': 80,
   'USDT-PLG20': 80,
   'USDT-BEP20': 80,
+  'USDT-TRC20': 80,
 
   // Rank 4: XRP (~$145 billion)
   'XRP': 70,
@@ -111,16 +119,18 @@ const List<String> unauthenticatedUserPriorityTickers = [
   'BTC',
   'CHTA',
   'NENG',
-  'ARRR',
-  'KMD',
   'LTC',
+  'ZEC',
+  'DASH',
+  'FIRO',
+  'PIVX',
   'DOGE',
   'ETH',
   'BNB',
-  'DASH',
   'DGB',
-  'ZEC',
-  'FIRO',
+  'ARRR',
+  'KMD',
+  'KMDCL',
 ];
 
 /// List of coins that are excluded from the list of coins displayed on the
@@ -142,7 +152,7 @@ const Set<String> excludedAssetList = {
   'SMTF-v2',
   'SFUSD',
 
-  // NFT v2 coins: https://github.com/KomodoPlatform/coins/pull/1061 will be
+  // NFT v2 coins: https://github.com/GLEECBTC/coins/pull/1061 will be
   // used in the background, so users do not need to see them.
   'NFT_ETH',
   'NFT_AVAX',
@@ -187,9 +197,8 @@ const List<String> appWalletOnlyAssetList = [
 
 /// Coins that are enabled by default on restore from seed or registration.
 /// This will not affect existing wallets.
-/// Reduced to only KMD to minimize initial connections and resource usage.
+/// Reduced to minimize initial connections and resource usage.
 List<String> get enabledByDefaultCoins => [
-  'KMD', // Komodo ecosystem coin
   'CHTA', // Cheetahdex meme coin
   'NENG', // Cheetahdex default coin
 ];

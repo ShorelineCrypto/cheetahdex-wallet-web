@@ -9,6 +9,7 @@ class MarketMakerBotSettings extends Equatable {
 
   const MarketMakerBotSettings({
     required this.isMMBotEnabled,
+    required this.saveOrdersBetweenLaunches,
     required this.botRefreshRate,
     required this.tradeCoinPairConfigs,
     this.messageServiceConfig,
@@ -21,6 +22,7 @@ class MarketMakerBotSettings extends Equatable {
   factory MarketMakerBotSettings.initial() {
     return MarketMakerBotSettings(
       isMMBotEnabled: false,
+      saveOrdersBetweenLaunches: true,
       botRefreshRate: 60,
       tradeCoinPairConfigs: const [],
       messageServiceConfig: null,
@@ -34,9 +36,10 @@ class MarketMakerBotSettings extends Equatable {
     if (json == null) return MarketMakerBotSettings.initial();
 
     final bool? enabled = json['is_market_maker_bot_enabled'] as bool?;
-    final int refresh = (json['bot_refresh_rate'] is int)
-        ? json['bot_refresh_rate'] as int
-        : int.tryParse('${json['bot_refresh_rate']}') ?? 60;
+    final dynamic refreshRaw = json['bot_refresh_rate'];
+    final int refresh = (refreshRaw is num)
+        ? refreshRaw.toInt()
+        : int.tryParse('$refreshRaw') ?? 60;
 
     final dynamic configsRaw = json['trade_coin_pair_configs'];
     final List<TradeCoinPairConfig> configs = (configsRaw is List)
@@ -79,6 +82,8 @@ class MarketMakerBotSettings extends Equatable {
 
     return MarketMakerBotSettings(
       isMMBotEnabled: enabled ?? false,
+      saveOrdersBetweenLaunches:
+          json['save_orders_between_launches'] as bool? ?? true,
       botRefreshRate: refresh,
       tradeCoinPairConfigs: configs,
       messageServiceConfig: messageCfg,
@@ -87,6 +92,9 @@ class MarketMakerBotSettings extends Equatable {
 
   /// Whether the Market Maker Bot is enabled (menu item is shown or not).
   final bool isMMBotEnabled;
+
+  /// Whether maker order configs should be retained between app launches.
+  final bool saveOrdersBetweenLaunches;
 
   /// The refresh rate of the bot in seconds.
   final int botRefreshRate;
@@ -102,6 +110,7 @@ class MarketMakerBotSettings extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'is_market_maker_bot_enabled': isMMBotEnabled,
+      'save_orders_between_launches': saveOrdersBetweenLaunches,
       'bot_refresh_rate': botRefreshRate,
       'trade_coin_pair_configs': tradeCoinPairConfigs
           .map((e) => e.toJson())
@@ -115,9 +124,10 @@ class MarketMakerBotSettings extends Equatable {
   Map<String, dynamic> toLegacyJson() {
     return {
       'is_market_maker_bot_enabled': isMMBotEnabled,
+      'save_orders_between_launches': saveOrdersBetweenLaunches,
       // Old builds included a price_url; provide the previous default
       'price_url':
-          'https://defistats.gleec.com/api/v3/prices/tickers_v2?expire_at=60',
+          'https://defistats.gleec.com/api/v3/prices/tickers_v2?expire_at=600',
       'bot_refresh_rate': botRefreshRate,
       'trade_coin_pair_configs': tradeCoinPairConfigs
           .map((e) => e.toJson())
@@ -129,12 +139,15 @@ class MarketMakerBotSettings extends Equatable {
 
   MarketMakerBotSettings copyWith({
     bool? isMMBotEnabled,
+    bool? saveOrdersBetweenLaunches,
     int? botRefreshRate,
     List<TradeCoinPairConfig>? tradeCoinPairConfigs,
     MessageServiceConfig? messageServiceConfig,
   }) {
     return MarketMakerBotSettings(
       isMMBotEnabled: isMMBotEnabled ?? this.isMMBotEnabled,
+      saveOrdersBetweenLaunches:
+          saveOrdersBetweenLaunches ?? this.saveOrdersBetweenLaunches,
       botRefreshRate: botRefreshRate ?? this.botRefreshRate,
       tradeCoinPairConfigs: tradeCoinPairConfigs ?? this.tradeCoinPairConfigs,
       messageServiceConfig: messageServiceConfig ?? this.messageServiceConfig,
@@ -144,6 +157,7 @@ class MarketMakerBotSettings extends Equatable {
   @override
   List<Object?> get props => [
     isMMBotEnabled,
+    saveOrdersBetweenLaunches,
     botRefreshRate,
     tradeCoinPairConfigs,
     messageServiceConfig,

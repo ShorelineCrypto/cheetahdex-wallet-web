@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get_it/get_it.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:komodo_cex_market_data/komodo_cex_market_data.dart';
 import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
 import 'package:path/path.dart' as p;
@@ -21,7 +21,6 @@ import 'package:web_dex/bloc/auth_bloc/auth_bloc.dart';
 import 'package:web_dex/bloc/cex_market_data/cex_market_data.dart';
 import 'package:web_dex/bloc/cex_market_data/mockup/performance_mode.dart';
 import 'package:web_dex/bloc/coins_bloc/coins_repo.dart';
-import 'package:komodo_defi_framework/komodo_defi_framework.dart';
 import 'package:web_dex/bloc/settings/settings_repository.dart';
 import 'package:web_dex/bloc/trading_status/trading_status_repository.dart';
 import 'package:web_dex/bloc/trading_status/trading_status_service.dart';
@@ -34,6 +33,7 @@ import 'package:web_dex/sdk/widgets/window_close_handler.dart';
 import 'package:web_dex/services/arrr_activation/arrr_activation_service.dart';
 import 'package:web_dex/services/fd_monitor_service.dart';
 import 'package:web_dex/services/feedback/app_feedback_wrapper.dart';
+import 'package:web_dex/services/legal_documents/legal_documents_repository.dart';
 import 'package:web_dex/services/logger/get_logger.dart';
 import 'package:web_dex/services/storage/get_storage.dart';
 import 'package:web_dex/shared/constants.dart';
@@ -127,6 +127,10 @@ Future<void> main() async {
             RepositoryProvider.value(value: sparklineRepository),
             RepositoryProvider.value(value: tradingStatusRepository),
             RepositoryProvider.value(value: tradingStatusService),
+            RepositoryProvider<LegalDocumentsRepository>(
+              create: (_) => LegalDocumentsRepository(),
+              dispose: (repository) => repository.dispose(),
+            ),
           ],
           child: const MyApp(),
         ),

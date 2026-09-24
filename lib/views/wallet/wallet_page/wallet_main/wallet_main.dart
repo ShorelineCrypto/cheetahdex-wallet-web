@@ -57,11 +57,13 @@ class WalletMain extends StatefulWidget {
 }
 
 class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
-  String _searchKey = '';
+  final ValueNotifier<String> _searchPhraseNotifier = ValueNotifier<String>('');
   PopupDispatcher? _popupDispatcher;
   StreamSubscription<Wallet?>? _walletSubscription;
   late TabController _tabController;
   int _activeTabIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   late final Stopwatch _walletListStopwatch;
   bool _walletHalfLogged = false;
@@ -105,6 +107,9 @@ class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
     _walletSubscription?.cancel();
     _popupDispatcher?.close();
     _popupDispatcher = null;
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _searchPhraseNotifier.dispose();
     _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
@@ -130,70 +135,77 @@ class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
             ? AuthorizeMode.noLogin
             : AuthorizeMode.logIn;
         final isLoggedIn = authStateMode == AuthorizeMode.logIn;
+        final walletType = authState.currentUser?.wallet.config.type;
+        final showMultiAddressNotice =
+            kShowHdWalletWarningBanner &&
+            isLoggedIn &&
+            walletType == WalletType.hdwallet;
 
         return ZhtlcConfigurationHandler(
-          child: BlocBuilder<CoinsBloc, CoinsState>(
-            builder: (context, state) {
-              final walletCoinsFiltered = state.walletCoins.values.toList();
-
-              return PageLayout(
-                noBackground: true,
-                header: (isMobile && !isLoggedIn)
-                    ? PageHeader(title: LocaleKeys.wallet.tr())
-                    : null,
-                padding: EdgeInsets.zero,
-                // Removed page padding here
-                content: Expanded(
-                  child: Listener(
-                    onPointerSignal: _onPointerSignal,
-                    child: CustomScrollView(
-                      key: const Key('wallet-page-scroll-view'),
-                      controller: _scrollController,
-                      slivers: [
-                        // Add a SizedBox at the top of the sliver list for spacing
-                        if (isLoggedIn) ...[
-                          if (!isMobile)
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 32),
-                            ),
-                          SliverToBoxAdapter(
-                            child: WalletOverview(
-                              key: const Key('wallet-overview'),
-                              onPortfolioGrowthPressed: () =>
-                                  _tabController.animateTo(1),
-                              onPortfolioProfitLossPressed: () =>
-                                  _tabController.animateTo(2),
-                              onAssetsPressed: () =>
-                                  _tabController.animateTo(0),
-                            ),
-                          ),
-                          const SliverToBoxAdapter(child: Gap(24)),
-                        ],
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _SliverTabBarDelegate(
-                            TabBar(
-                              controller: _tabController,
-                              tabs: [
-                                Tab(text: LocaleKeys.assets.tr()),
-                                if (isLoggedIn)
-                                  Tab(text: LocaleKeys.portfolioGrowth.tr())
-                                else
-                                  Tab(text: LocaleKeys.statistics.tr()),
-                                if (isLoggedIn)
-                                  Tab(text: LocaleKeys.profitAndLoss.tr()),
-                              ],
-                            ),
+          child: PageLayout(
+            noBackground: true,
+            header: (isMobile && !isLoggedIn)
+                ? PageHeader(title: LocaleKeys.wallet.tr())
+                : null,
+            padding: EdgeInsets.zero,
+            // Removed page padding here
+            content: Expanded(
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerSignal: _onPointerSignal,
+                child: DexScrollbar(
+                  scrollController: _scrollController,
+                  isMobile: isMobile,
+                  child: CustomScrollView(
+                    key: const Key('wallet-page-scroll-view'),
+                    controller: _scrollController,
+                    slivers: [
+                      // Add a SizedBox at the top of the sliver list for spacing
+                      if (isLoggedIn) ...[
+                        if (!isMobile)
+                          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                        SliverToBoxAdapter(
+                          child: WalletOverview(
+                            key: const Key('wallet-overview'),
+                            onPortfolioGrowthPressed: () =>
+                                _tabController.animateTo(1),
+                            onPortfolioProfitLossPressed: () =>
+                                _tabController.animateTo(2),
+                            onAssetsPressed: () => _tabController.animateTo(0),
                           ),
                         ),
-                        if (!isMobile) SliverToBoxAdapter(child: Gap(24)),
-                        ..._buildTabSlivers(authStateMode, walletCoinsFiltered),
+                        const SliverToBoxAdapter(child: Gap(24)),
+                        if (showMultiAddressNotice) ...[
+                          const SliverToBoxAdapter(
+                            child: _MultiAddressWalletNotice(),
+                          ),
+                          const SliverToBoxAdapter(child: Gap(16)),
+                        ],
                       ],
-                    ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _SliverTabBarDelegate(
+                          TabBar(
+                            controller: _tabController,
+                            tabs: [
+                              Tab(text: LocaleKeys.assets.tr()),
+                              if (isLoggedIn)
+                                Tab(text: LocaleKeys.portfolioGrowth.tr())
+                              else
+                                Tab(text: LocaleKeys.statistics.tr()),
+                              if (isLoggedIn)
+                                Tab(text: LocaleKeys.profitAndLoss.tr()),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (!isMobile) SliverToBoxAdapter(child: Gap(24)),
+                      ..._buildTabSlivers(authStateMode),
+                    ],
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
         );
       },
@@ -260,9 +272,12 @@ class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
   }
 
   void _onSearchChange(String searchKey) {
-    setState(() {
-      _searchKey = searchKey.toLowerCase();
-    });
+    final normalizedSearchKey = searchKey.toLowerCase();
+    if (_searchPhraseNotifier.value == normalizedSearchKey) {
+      return;
+    }
+
+    _searchPhraseNotifier.value = normalizedSearchKey;
   }
 
   void _onActiveCoinItemTap(Coin coin) {
@@ -282,13 +297,15 @@ class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
     _tabController.animateTo(1);
   }
 
-  List<Widget> _buildTabSlivers(AuthorizeMode mode, List<Coin> walletCoins) {
+  List<Widget> _buildTabSlivers(AuthorizeMode mode) {
     switch (_activeTabIndex) {
       case 0:
         return [
           SliverPersistentHeader(
             pinned: true,
             delegate: _SliverSearchBarDelegate(
+              searchController: _searchController,
+              searchFocusNode: _searchFocusNode,
               withBalance: context
                   .watch<SettingsBloc>()
                   .state
@@ -299,39 +316,63 @@ class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
             ),
           ),
           if (!isMobile) const SliverToBoxAdapter(child: SizedBox(height: 22)),
-          CoinListView(
-            mode: mode,
-            searchPhrase: _searchKey,
-            withBalance: context
-                .watch<SettingsBloc>()
-                .state
-                .hideZeroBalanceAssets,
-            onActiveCoinItemTap: _onActiveCoinItemTap,
-            onAssetItemTap: _onAssetItemTap,
-            onAssetStatisticsTap: _onAssetStatisticsTap,
+          ValueListenableBuilder<String>(
+            valueListenable: _searchPhraseNotifier,
+            builder: (context, searchPhrase, child) {
+              return CoinListView(
+                mode: mode,
+                searchPhrase: searchPhrase,
+                withBalance: context
+                    .watch<SettingsBloc>()
+                    .state
+                    .hideZeroBalanceAssets,
+                onActiveCoinItemTap: _onActiveCoinItemTap,
+                onAssetItemTap: _onAssetItemTap,
+                onAssetStatisticsTap: _onAssetStatisticsTap,
+              );
+            },
           ),
         ];
       case 1:
-        return [
-          SliverToBoxAdapter(
-            child: SizedBox(
-              width: double.infinity,
-              height: 340,
-              child: mode == AuthorizeMode.logIn
-                  ? PortfolioGrowthChart(initialCoins: walletCoins)
-                  : const PriceChartPage(),
+        if (mode != AuthorizeMode.logIn) {
+          return const [
+            SliverToBoxAdapter(
+              child: SizedBox(
+                width: double.infinity,
+                height: 340,
+                child: PriceChartPage(),
+              ),
             ),
+          ];
+        }
+        return [
+          BlocSelector<CoinsBloc, CoinsState, List<Coin>>(
+            selector: (state) => state.walletCoins.values.toList(),
+            builder: (context, walletCoins) {
+              return SliverToBoxAdapter(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 340,
+                  child: PortfolioGrowthChart(initialCoins: walletCoins),
+                ),
+              );
+            },
           ),
         ];
       case 2:
         if (mode != AuthorizeMode.logIn) return [];
         return [
-          SliverToBoxAdapter(
-            child: SizedBox(
-              width: double.infinity,
-              height: 340,
-              child: PortfolioProfitLossChart(initialCoins: walletCoins),
-            ),
+          BlocSelector<CoinsBloc, CoinsState, List<Coin>>(
+            selector: (state) => state.walletCoins.values.toList(),
+            builder: (context, walletCoins) {
+              return SliverToBoxAdapter(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 340,
+                  child: PortfolioProfitLossChart(initialCoins: walletCoins),
+                ),
+              );
+            },
           ),
         ];
       default:
@@ -377,6 +418,7 @@ class _WalletMainState extends State<WalletMain> with TickerProviderStateMixin {
       width: 320,
       context: scaffoldKey.currentContext ?? context,
       barrierColor: isMobile ? Theme.of(context).colorScheme.onSurface : null,
+      barrierDismissible: false,
       borderColor: theme.custom.specificButtonBorderColor,
       popupContent: WalletsManagerWrapper(
         eventType: WalletsManagerEventType.wallet,
@@ -417,45 +459,93 @@ class CoinListView extends StatelessWidget {
           searchPhrase: searchPhrase,
           withBalance: withBalance,
           onCoinItemTap: onActiveCoinItemTap,
+          onStatisticsTap: (coin) =>
+              onAssetStatisticsTap(coin.assetId, const Duration(days: 1)),
           arrrActivationService: RepositoryProvider.of<ArrrActivationService>(
             context,
           ),
         );
       case AuthorizeMode.hiddenLogin:
       case AuthorizeMode.noLogin:
-        // Assets are sorted by priority at the group level in AssetsList._groupAssetsByTicker()
-        return AssetsList(
-          useGroupedView: true,
-          assets: context
-              .read<CoinsBloc>()
-              .state
-              .coins
-              .values
-              .map((coin) => coin.assetId)
-              .toList(),
-          withBalance: false,
-          searchPhrase: searchPhrase,
-          onAssetItemTap: (assetId) => onAssetItemTap(
-            context.read<CoinsBloc>().state.coins.values.firstWhere(
-              (coin) => coin.assetId == assetId,
-            ),
-          ),
-          onStatisticsTap: onAssetStatisticsTap,
+        return BlocSelector<CoinsBloc, CoinsState, List<Coin>>(
+          selector: (state) => state.coins.values.toList(),
+          builder: (context, coins) {
+            // Assets are sorted by priority at the group level in AssetsList._groupAssetsByTicker()
+            return AssetsList(
+              useGroupedView: true,
+              assets: coins.map((coin) => coin.assetId).toList(),
+              withBalance: false,
+              searchPhrase: searchPhrase,
+              onAssetItemTap: (assetId) => onAssetItemTap(
+                coins.firstWhere((coin) => coin.assetId == assetId),
+              ),
+              onStatisticsTap: onAssetStatisticsTap,
+            );
+          },
         );
     }
   }
 }
 
+class _MultiAddressWalletNotice extends StatelessWidget {
+  const _MultiAddressWalletNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderColor = theme.colorScheme.primary.withValues(alpha: 0.2);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: theme.colorScheme.primary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LocaleKeys.multiAddressWalletNoticeTitle.tr(),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  LocaleKeys.multiAddressWalletNoticeDescription.tr(),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverSearchBarDelegate({
+    required this.searchController,
+    required this.searchFocusNode,
     required this.withBalance,
     required this.onSearchChange,
     required this.onWithBalanceChange,
     required this.mode,
   });
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
   final bool withBalance;
-  final Function(String) onSearchChange;
-  final Function(bool) onWithBalanceChange;
+  final ValueChanged<String> onSearchChange;
+  final ValueChanged<bool> onWithBalanceChange;
   final AuthorizeMode mode;
 
   @override
@@ -480,6 +570,8 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
       height: (maxExtent - shrinkOffset).clamp(minExtent, maxExtent),
       child: WalletManageSection(
         withBalance: withBalance,
+        searchController: searchController,
+        searchFocusNode: searchFocusNode,
         onSearchChange: onSearchChange,
         onWithBalanceChange: onWithBalanceChange,
         mode: mode,
@@ -491,7 +583,10 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverSearchBarDelegate oldDelegate) {
-    return withBalance != oldDelegate.withBalance || mode != oldDelegate.mode;
+    return withBalance != oldDelegate.withBalance ||
+        mode != oldDelegate.mode ||
+        searchController != oldDelegate.searchController ||
+        searchFocusNode != oldDelegate.searchFocusNode;
   }
 }
 

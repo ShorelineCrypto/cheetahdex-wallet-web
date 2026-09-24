@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:komodo_defi_sdk/komodo_defi_sdk.dart';
 import 'package:komodo_defi_types/komodo_defi_types.dart';
 import 'package:komodo_persistence_layer/komodo_persistence_layer.dart';
 import 'package:logging/logging.dart';
+import 'package:web_dex/bloc/cex_market_data/cache_constants.dart';
 import 'package:web_dex/bloc/cex_market_data/charts.dart';
 import 'package:web_dex/bloc/cex_market_data/mockup/performance_mode.dart';
 import 'package:web_dex/bloc/cex_market_data/profit_loss/demo_profit_loss_repository.dart';
@@ -33,7 +34,7 @@ class ProfitLossRepository {
   factory ProfitLossRepository.withDefaults({
     required TransactionHistoryRepo transactionHistoryRepo,
     required KomodoDefiSdk sdk,
-    String cacheTableName = 'profit_loss',
+    String cacheTableName = profitLossCacheBoxName,
     PerformanceMode? demoMode,
   }) {
     if (demoMode != null) {
@@ -62,10 +63,15 @@ class ProfitLossRepository {
   final _log = Logger('profit-loss-repository');
 
   static Future<void> ensureInitialized() async {
-    Hive
-      ..registerAdapter(FiatValueAdapter())
-      ..registerAdapter(ProfitLossAdapter())
-      ..registerAdapter(ProfitLossCacheAdapter());
+    if (!Hive.isAdapterRegistered(fiatValueAdapterTypeId)) {
+      Hive.registerAdapter(FiatValueAdapter());
+    }
+    if (!Hive.isAdapterRegistered(profitLossAdapterTypeId)) {
+      Hive.registerAdapter(ProfitLossAdapter());
+    }
+    if (!Hive.isAdapterRegistered(profitLossCacheAdapterTypeId)) {
+      Hive.registerAdapter(ProfitLossCacheAdapter());
+    }
   }
 
   Future<void> clearCache() async {
@@ -157,7 +163,24 @@ class ProfitLossRepository {
     );
 
     if (transactions.isEmpty) {
-      _log.fine('No transactions found for ${coinId.id}, caching empty result');
+      _log.fine('No transactions found for ${coinId.id}');
+
+      final String compoundKey = ProfitLossCache.getPrimaryKey(
+        coinId: coinId.id,
+        fiatCurrency: fiatCoinId,
+        walletId: walletId,
+        isHdWallet: currentUser.isHd,
+      );
+      final existingCache = await _profitLossCacheProvider.get(compoundKey);
+      if (existingCache != null && existingCache.profitLosses.isNotEmpty) {
+        _log.fine(
+          'Keeping existing non-empty cache for ${coinId.id} '
+          '(${existingCache.profitLosses.length} entries) '
+          'instead of overwriting with empty transactions',
+        );
+        methodStopwatch.stop();
+        return existingCache.profitLosses;
+      }
 
       final cacheInsertStopwatch = Stopwatch()..start();
       await _profitLossCacheProvider.insert(

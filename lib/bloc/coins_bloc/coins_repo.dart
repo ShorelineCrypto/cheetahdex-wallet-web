@@ -21,11 +21,13 @@ import 'package:web_dex/generated/codegen_loader.g.dart';
 import 'package:web_dex/mm2/mm2.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/base.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/bloc_response.dart';
+import 'package:web_dex/mm2/mm2_api/rpc/disable_coin/disable_coin_req.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/withdraw/withdraw_errors.dart';
 import 'package:web_dex/mm2/mm2_api/rpc/withdraw/withdraw_request.dart';
 import 'package:web_dex/model/cex_price.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/kdf_auth_metadata_extension.dart';
+import 'package:web_dex/model/wallet.dart';
 import 'package:web_dex/model/text_error.dart';
 import 'package:web_dex/model/withdraw_details/withdraw_details.dart';
 import 'package:web_dex/services/arrr_activation/arrr_activation_service.dart';
@@ -66,6 +68,8 @@ class CoinsRepo {
   final ArrrActivationService _arrrActivationService;
 
   final _log = Logger('CoinsRepo');
+  static const _unsupportedTrezorSiaMessage =
+      'SIA is not supported for Trezor wallets in this release.';
 
   /// { acc: { abbr: address }}, used in Fiat Page
   final Map<String, Map<String, String>> _addressCache = {};
@@ -81,6 +85,23 @@ class CoinsRepo {
 
   // Map to keep track of active balance watchers
   final Map<AssetId, StreamSubscription<BalanceInfo>> _balanceWatchers = {};
+  bool get hasActiveBalanceWatchers => _balanceWatchers.isNotEmpty;
+
+  bool hasMissingBalanceWatchersForActiveWalletCoins(
+    Map<String, Coin> walletCoins,
+  ) {
+    return countMissingBalanceWatchersForActiveWalletCoins(walletCoins) > 0;
+  }
+
+  int countMissingBalanceWatchersForActiveWalletCoins(
+    Map<String, Coin> walletCoins,
+  ) {
+    final activeAssetIds = walletCoins.values
+        .where((coin) => coin.isActive)
+        .map((coin) => coin.id)
+        .toSet();
+    return _kdfSdk.balances.countMissingWatchersForAssets(activeAssetIds);
+  }
 
   /// Hack used to broadcast activated/deactivated coins to the CoinsBloc to
   /// update the status of the coins in the UI layer. This is needed as there
@@ -122,27 +143,56 @@ class CoinsRepo {
 
   /// Subscribe to balance updates for an asset using the SDK's balance manager
   void _subscribeToBalanceUpdates(Asset asset) {
-    // Cancel any existing subscription for this asset
-    _balanceWatchers[asset.id]?.cancel();
+    final assetId = asset.id;
 
-    if (_tradingStatusService.isAssetBlocked(asset.id)) {
-      _log.info('Asset ${asset.id.id} is blocked. Skipping balance updates.');
+    // Cancel any existing subscription for this asset
+    _balanceWatchers[assetId]?.cancel();
+    _balanceWatchers.remove(assetId);
+
+    if (_tradingStatusService.isAssetBlocked(assetId)) {
+      _log.info('Asset ${assetId.id} is blocked. Skipping balance updates.');
       return;
     }
 
-    // Start a new subscription
-    _balanceWatchers[asset.id] = _kdfSdk.balances.watchBalance(asset.id).listen(
-      (balanceInfo) {
-        // Update the balance cache with the new values
-        _balancesCache[asset.id.id] = (
-          balance: balanceInfo.total.toDouble(),
-          spendable: balanceInfo.spendable.toDouble(),
-        );
+    StreamSubscription<BalanceInfo>? watcher;
 
-        // Broadcast updated coin for UI to refresh via bloc
-        _broadcastBalanceChange(_assetToCoinWithoutAddress(asset));
-      },
-    );
+    // Start a new subscription
+    watcher = _kdfSdk.balances
+        .watchBalance(assetId)
+        .listen(
+          (balanceInfo) {
+            // Update the balance cache with the new values
+            _balancesCache[assetId.id] = (
+              balance: balanceInfo.total.toDouble(),
+              spendable: balanceInfo.spendable.toDouble(),
+            );
+
+            // Broadcast updated coin for UI to refresh via bloc
+            _broadcastBalanceChange(_assetToCoinWithoutAddress(asset));
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            _log.warning(
+              'Balance watcher failed for ${assetId.id}; fallback polling will cover this asset',
+              error,
+              stackTrace,
+            );
+            final current = _balanceWatchers[assetId];
+            if (watcher != null && identical(current, watcher)) {
+              _balanceWatchers.remove(assetId);
+            }
+          },
+          onDone: () {
+            _log.info(
+              'Balance watcher ended for ${assetId.id}; fallback polling will cover this asset',
+            );
+            final current = _balanceWatchers[assetId];
+            if (watcher != null && identical(current, watcher)) {
+              _balanceWatchers.remove(assetId);
+            }
+          },
+          cancelOnError: true,
+        );
+    _balanceWatchers[assetId] = watcher;
   }
 
   void flushCache() {
@@ -336,6 +386,33 @@ class CoinsRepo {
       return;
     }
 
+    final walletType = (await _kdfSdk.currentWallet())?.config.type;
+    if (walletType == WalletType.trezor) {
+      final unsupportedSiaAssets = assets.where(
+        (asset) => asset.id.subClass == CoinSubClass.sia,
+      );
+      if (unsupportedSiaAssets.isNotEmpty) {
+        _log.warning(
+          'Skipping unsupported Trezor SIA activation for '
+          '${unsupportedSiaAssets.map((a) => a.id.id).join(', ')}: '
+          '$_unsupportedTrezorSiaMessage',
+        );
+        for (final siaAsset in unsupportedSiaAssets) {
+          _broadcastAsset(
+            _assetToCoinWithoutAddress(
+              siaAsset,
+            ).copyWith(state: CoinState.suspended),
+          );
+        }
+      }
+      assets = assets
+          .where((asset) => asset.id.subClass != CoinSubClass.sia)
+          .toList();
+      if (assets.isEmpty) {
+        return;
+      }
+    }
+
     // Debug logging for activation
     if (kDebugElectrumLogs) {
       final coinIdList = assets.map((e) => e.id.id).join(', ');
@@ -394,10 +471,12 @@ class CoinsRepo {
     for (final asset in assets) {
       final coin = _assetToCoinWithoutAddress(asset);
       try {
-        // Check if asset is already activated to avoid SDK exception.
-        // The SDK throws an exception when trying to activate an already-activated
-        // asset, so we need this manual check to prevent unnecessary retries.
-        final isAlreadyActivated = await isAssetActivated(asset.id);
+        // Force-refresh activation state here to avoid racing on stale cache
+        // reads before attempting a coordinated activation.
+        final isAlreadyActivated = await isAssetActivated(
+          asset.id,
+          forceRefresh: true,
+        );
 
         if (isAlreadyActivated) {
           _log.info(
@@ -411,12 +490,9 @@ class CoinsRepo {
           // Use retry with exponential backoff for activation
           await retry<void>(
             () async {
-              final progress = await _kdfSdk.assets.activateAsset(asset).last;
-              if (!progress.isSuccess) {
-                throw Exception(
-                  progress.errorMessage ??
-                      'Activation failed for ${asset.id.id}',
-                );
+              final didActivate = await _kdfSdk.ensureAssetActivated(asset);
+              if (!didActivate) {
+                throw Exception('Activation failed for ${asset.id.id}');
               }
             },
             maxAttempts: maxRetryAttempts,
@@ -506,13 +582,18 @@ class CoinsRepo {
     }
   }
 
+  /// Adds the given assets (and their parent coins) to wallet metadata.
+  ///
+  /// This is exposed so callers can batch-write metadata before launching
+  /// parallel activations with `addToWalletMetadata: false`.
+  Future<void> addAssetsToWalletMetadata(Iterable<AssetId> assets) =>
+      _addAssetsToWalletMetdata(assets);
+
   Future<void> _addAssetsToWalletMetdata(Iterable<AssetId> assets) async {
-    final parentIds = <String>{};
-    for (final assetId in assets) {
-      if (assetId.parentId != null) {
-        parentIds.add(assetId.parentId!.id);
-      }
-    }
+    final parentIds = assets
+        .where((assetId) => assetId.parentId != null)
+        .map((assetId) => assetId.parentId!.id)
+        .toSet();
 
     if (assets.isNotEmpty || parentIds.isNotEmpty) {
       final allIdsToAdd = <String>{...assets.map((e) => e.id), ...parentIds};
@@ -605,10 +686,22 @@ class CoinsRepo {
       allCoinIds.addAll(children.map((child) => child.id.id));
     }
 
+    final Future<void> removeMetadataFuture;
     if (allCoinIds.isNotEmpty) {
-      // assume success here, so we don't await this call and
-      // block the deactivation process
-      unawaited(_kdfSdk.removeActivatedCoins(allCoinIds.toList()));
+      // Keep metadata in sync so disabled coins do not re-enable on login.
+      removeMetadataFuture = () async {
+        try {
+          await _kdfSdk.removeActivatedCoins(allCoinIds.toList());
+        } catch (e, s) {
+          _log.warning(
+            'Failed to update wallet metadata for deactivated coins',
+            e,
+            s,
+          );
+        }
+      }();
+    } else {
+      removeMetadataFuture = Future.value();
     }
 
     final parentCancelFutures = coins.map((coin) async {
@@ -639,19 +732,112 @@ class CoinsRepo {
       }),
     ];
     await Future.wait(deactivationTasks);
-    await Future.wait([...parentCancelFutures, ...childCancelFutures]);
+    await Future.wait([
+      ...parentCancelFutures,
+      ...childCancelFutures,
+      removeMetadataFuture,
+    ]);
     _invalidateActivatedAssetsCache();
   }
 
-  double? getUsdPriceByAmount(String amount, String coinAbbr) {
+  /// Performs a full rollback for preview-only asset activations.
+  ///
+  /// Unlike [deactivateCoinsSync], this disables the assets in MM2 so
+  /// temporary preview activations do not remain active for the rest of the
+  /// session. This should only be used for short-lived preview flows where a
+  /// real rollback is required.
+  Future<void> rollbackPreviewAssets(
+    Iterable<Asset> assets, {
+    Set<AssetId> deleteCustomTokens = const {},
+    Set<AssetId> removeWalletMetadataAssets = const {},
+    bool notifyListeners = false,
+  }) async {
+    final uniqueAssets = Map<AssetId, Asset>.fromEntries(
+      assets.map((asset) => MapEntry(asset.id, asset)),
+    );
+    if (uniqueAssets.isEmpty) {
+      return;
+    }
+
+    final orderedAssets = uniqueAssets.values.toList()
+      ..sort((a, b) {
+        final aPriority = a.id.parentId == null ? 1 : 0;
+        final bPriority = b.id.parentId == null ? 1 : 0;
+        return aPriority.compareTo(bPriority);
+      });
+
+    for (final asset in orderedAssets) {
+      await _balanceWatchers[asset.id]?.cancel();
+      _balanceWatchers.remove(asset.id);
+
+      try {
+        if (await isAssetActivated(asset.id, forceRefresh: true)) {
+          await _mm2.call(DisableCoinReq(coin: asset.id.id));
+        }
+      } catch (e, s) {
+        _log.warning('Failed to disable preview asset ${asset.id.id}', e, s);
+      }
+
+      if (notifyListeners) {
+        _broadcastAsset(asset.toCoin().copyWith(state: CoinState.inactive));
+      }
+    }
+
+    if (removeWalletMetadataAssets.isNotEmpty) {
+      try {
+        await _kdfSdk.removeActivatedCoins(
+          removeWalletMetadataAssets.map((assetId) => assetId.id).toList(),
+        );
+      } catch (e, s) {
+        _log.warning(
+          'Failed to remove preview assets from wallet metadata',
+          e,
+          s,
+        );
+      }
+    }
+
+    for (final assetId in deleteCustomTokens) {
+      try {
+        await _kdfSdk.deleteCustomToken(assetId);
+      } catch (e, s) {
+        _log.warning('Failed to delete preview custom token $assetId', e, s);
+      }
+    }
+
+    _invalidateActivatedAssetsCache();
+  }
+
+  /// Calculates USD value for a numeric [amount] of [coinAbbr].
+  ///
+  /// Prefer this method over [getUsdPriceByAmount] to avoid string parsing
+  /// issues (e.g. accidentally passing display-formatted values like
+  /// `"1.1 TRX"`).
+  double? getUsdPriceForAmount(num amount, String coinAbbr) {
     final Coin? coin = getCoin(coinAbbr);
-    final double? parsedAmount = double.tryParse(amount);
+    final double parsedAmount = amount.toDouble();
     final double? usdPrice = coin?.usdPrice?.price?.toDouble();
 
-    if (coin == null || usdPrice == null || parsedAmount == null) {
+    if (coin == null || usdPrice == null) {
       return null;
     }
     return parsedAmount * usdPrice;
+  }
+
+  @Deprecated(
+    'Use getUsdPriceForAmount(num amount, String coinAbbr) to avoid '
+    'string-parsing bugs from display-formatted values.',
+  )
+  double? getUsdPriceByAmount(String amount, String coinAbbr) {
+    final double? parsedAmount = double.tryParse(amount);
+    if (parsedAmount == null) {
+      _log.warning(
+        'Invalid amount "$amount" passed to getUsdPriceByAmount for $coinAbbr. '
+        'Use getUsdPriceForAmount() with a numeric value.',
+      );
+      return null;
+    }
+    return getUsdPriceForAmount(parsedAmount, coinAbbr);
   }
 
   /// Fetches current prices for a broad set of assets
@@ -688,7 +874,9 @@ class CoinsRepo {
     // Process assets with bounded parallelism to avoid overwhelming providers
     await _fetchAssetPricesInChunks(validAssets);
 
-    return _pricesCache;
+    return Map<String, CexPrice>.unmodifiable(
+      Map<String, CexPrice>.from(_pricesCache),
+    );
   }
 
   /// Processes assets in chunks with bounded parallelism to avoid
@@ -994,7 +1182,7 @@ class CoinsRepo {
       _log.severe('Error activating ZHTLC asset ${asset.id.id}', e, s);
 
       // Broadcast suspended state if requested
-      if (notifyListeners) {
+      if (notifyListeners && e is! ZhtlcActivationCancelled) {
         _broadcastAsset(coin.copyWith(state: CoinState.suspended));
       }
 

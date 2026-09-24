@@ -75,28 +75,39 @@ class CoinSelectItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final textColor = theme.colorScheme.onSurface;
+
+    final baseTextStyle =
+        theme.textTheme.bodyMedium ??
+        const TextStyle(fontSize: 16, fontWeight: FontWeight.w300);
+
     return InkWell(
       onTap: onTap,
-      child: Row(
-        children: [
-          if (leading != null)
-            Padding(padding: const EdgeInsets.only(right: 12), child: leading!)
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: AssetLogo.ofTicker(coinId, size: 20),
-            ),
-          Expanded(
-            child: DefaultTextStyle(
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-              child: title ?? Text(name),
-            ),
+      child: IconTheme(
+        data: theme.iconTheme.copyWith(color: textColor),
+        child: DefaultTextStyle(
+          style: baseTextStyle.copyWith(color: textColor),
+          child: Row(
+            children: [
+              if (leading != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: leading!,
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: AssetLogo.ofTicker(coinId, size: 20),
+                ),
+              Expanded(child: title ?? Text(name)),
+              if (trailing != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: trailing!,
+                ),
+            ],
           ),
-          if (trailing != null)
-            Padding(padding: const EdgeInsets.only(left: 8), child: trailing!),
-        ],
+        ),
       ),
     );
   }

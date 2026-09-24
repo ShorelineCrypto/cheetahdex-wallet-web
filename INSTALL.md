@@ -25,24 +25,24 @@ Finally, check dependency with below command:
 
 ShorelineCrypto production web/android app was compiled successfully under below dependency versions in Ubuntu 22.04:
 ```
- [!] Flutter (Channel [user-branch], 3.35.3, on Ubuntu 22.04.5 LTS 6.8.0-87-generic, locale en_US.UTF-8) [55ms]
-    ! Flutter version 3.35.3 on channel [user-branch] at /home/hlu/flutter
+ [!] Flutter (Channel [user-branch], 3.41.4, on Ubuntu 22.04.5 LTS 6.8.0-106-generic, locale en_US.UTF-8) [94ms]
+    ! Flutter version 3.41.4 on channel [user-branch] at /home/hlu/flutter
       Currently on an unknown channel. Run `flutter channel` to switch to an official channel.
       If that doesn't fix the issue, reinstall Flutter by following instructions at https://flutter.dev/setup.
     ! Upstream repository unknown source is not a standard remote.
       Set environment variable "FLUTTER_GIT_URL" to unknown source to dismiss this error.
-    • Framework revision a402d9a437 (2 months ago), 2025-09-03 14:54:31 -0700
-    • Engine revision ddf47dd3ff
-    • Dart version 3.9.2
-    • DevTools version 2.48.0
-    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets,
-      enable-lldb-debugging
+    • Framework revision ff37bef603 (7 weeks ago), 2026-03-03 16:03:22 -0800
+    • Engine revision e4b8dca3f1
+    • Dart version 3.11.1
+    • DevTools version 2.54.1
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, omit-legacy-version-file,
+      enable-lldb-debugging, enable-uiscene-migration
     • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
 
-[✓] Android toolchain - develop for Android devices (Android SDK version 35.0.0) [3.1s]
+[✓] Android toolchain - develop for Android devices (Android SDK version 36.0.0) [2.9s]
     • Android SDK at /home/hlu/Android/Sdk
     • Emulator version 36.1.9.0 (build_id 13823996) (CL:N/A)
-    • Platform android-35, build-tools 35.0.0
+    • Platform android-36, build-tools 36.0.0
     • ANDROID_HOME = /home/hlu/android-studio
     • Java binary at: /home/hlu/android-studio/jbr/bin/java
       This is the JDK bundled with the latest Android Studio installation on this machine.
@@ -50,10 +50,10 @@ ShorelineCrypto production web/android app was compiled successfully under below
     • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
     • All Android licenses accepted.
 
-[✓] Chrome - develop for the web [19ms]
+[✓] Chrome - develop for the web [22ms]
     • Chrome at google-chrome
 
-[✓] Linux toolchain - develop for Linux desktop [314ms]
+[✓] Linux toolchain - develop for Linux desktop [536ms]
     • Ubuntu clang version 14.0.0-1ubuntu1.1
     • cmake version 3.22.1
     • ninja version 1.10.1
@@ -61,24 +61,27 @@ ShorelineCrypto production web/android app was compiled successfully under below
     • GL_EXT_framebuffer_blit: no
     • GL_EXT_texture_format_BGRA8888: no
 
-[✓] Android Studio (version 2024.3) [14ms]
-    • Android Studio at /home/hlu/android-studio
-    • Flutter plugin can be installed from:
-      🔨 https://plugins.jetbrains.com/plugin/9212-flutter
-    • Dart plugin can be installed from:
-      🔨 https://plugins.jetbrains.com/plugin/6351-dart
-    • Java version OpenJDK Runtime Environment (build 21.0.5+-12932927-b750.29)
+[✓] Connected device (2 available) [177ms]
+    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-106-generic
+    • Chrome (web)    • chrome • web-javascript • Google Chrome 146.0.7680.153
 
-[✓] Connected device (2 available) [228ms]
-    • Linux (desktop) • linux  • linux-x64      • Ubuntu 22.04.5 LTS 6.8.0-87-generic
-    • Chrome (web)    • chrome • web-javascript • Google Chrome 142.0.7444.162
-
-[✓] Network resources [608ms]
+[✓] Network resources [301ms]
     • All expected network resources are available.
 
 ! Doctor found issues in 1 category.
 
 ```
+
+## Dependency - github token
+Compiling web app with flutter or github action require personal access token setup at github. Without active token setup, the web compiling will generate authorization error on github api downloading step, windows app git action will fail too. 
+
+Login into github account, follow menu settings -> Credentials, setup proper personal access token (classic or fine-grained), enable read only for repo and git actions.
+
+Run below on linux terminal before compiling step, or append at your .bashrc file:
+```commandline
+export GITHUB_API_PUBLIC_READONLY_TOKEN=xxxxxx
+```
+
 
 ## Cheetahdex Wallet Web App
 ### Step 1 - compile cheetahdex-wallet web app
@@ -89,13 +92,13 @@ To compile your self-hosted web app, run below
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
   cd cheetahdex-wallet-web && git checkout cheetahdex
   git submodule update --init --recursive
-  flutter build web --csp --no-web-resources-cdn
+  flutter build web --csp --no-web-resources-cdn --wasm
 ```
 
 If above command runs successfully, it will say that coins has been updated, please re-compile web app again. Now re-compile:
 
 ```
-  flutter build web --csp --no-web-resources-cdn
+  flutter build web --csp --no-web-resources-cdn --wasm
 ```
 
 Now you should see the notice that web app has been compiled successfully at terminal. 
@@ -166,12 +169,29 @@ If step 1 failed with message like "duplicate error on color.xml bla bla", or th
   flutter build apk
 ```
 
-## Cheetahdex Wallet Linux Desktop App
+## Cheetahdex Wallet Windows/Linux Desktop App
+### Step 1 - fork cheetahdex-wallet-web repo
+
+Windows 11 (or linux) desktop release was obtained through github action CI/CD method. This repo source code allows you to perform the same binary file release yourself from source code.
+
+To obtain do-it-yourself your own binary compiled installation file for windows 11 desktop app from source code, you will need to fork this github repo first, then in your own forked repo, enable github action. Github action is free service provided by github for every github account. 
+
+### Step 2 - PR to cheetahdex branch to compile
+
+This source code under '.github' subfolder has all the code for github action CI/CD compiling method. The compiling will be triggered upon "pull request" to the default `cheetahdex` git branch. Try to play with your branch code and PR to cheetahdex branch to enable github Actions to compile windows/linux desktop app binary release. 
+
+The final compiled result windows file is at:
+git Actions -> Building desktop apps -> Build Desktop (windows) -> Upload artifact -> click download at browser.
+
+The final compiled result linux file is at:
+git Actions -> Building desktop apps -> Build Desktop (linux) -> Upload artifact -> click download at browser.
+
+## Cheetahdex Wallet Linux Desktop App - alternative flutter method
 ### Step 1 - compile cheetahdex-wallet Desktop Linux app
 
-There are 3 ways to compile linux desktop binary file: github action CI/CD method, docker method and flutter build method. Here linux release was obtained through flutter method.
+There are 3 ways to compile linux desktop binary file: github action CI/CD method, docker method and flutter build method. Here linux release was obtained through github action CI/CD method.
 
-To compile your own linux release files, make sure your linux server (ubuntu 22.04) met the flutter/linux dependency as shown above, then run below
+To compile your own linux release files on flutter method, make sure your linux server (ubuntu 22.04) met the flutter/linux dependency as shown above, then run below
 
 ```
   git clone https://github.com/ShorelineCrypto/cheetahdex-wallet-web.git
@@ -191,32 +211,35 @@ If above command runs successfully, it may say that coins has been updated and c
 Now your linux binary release files will be built successfully under 'build/linux/x64/release/bundle' folder.  Rename this `bundle` folder name into proper linux folder with version, then move the whole folder into desired installation location such as below:
 
 ```commandline
-mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.3.2
+mv build/linux/x64/release/bundle ~/cheetahdex-wallet_linux_unified_0.9.4
 
 ```
 
-### Step 2 - Trouble shoot Linux Failure on kdf
+## Trouble Shooting on Linux Desktop Usage
+### Issue 1 - Trouble shoot Linux Failure on kdf
 
 You can launch the linux app from Linux Desktop by double clicking the binary file directly.  However, it is known that if you symbolic link the binary file into other location such as Desktop, an error of "kdf not found" will show up. 
 
 You can also launch the linux wallet app on terminal with all the log printing out in details on terminal as below:
 ```commandline
-  cd ~/cheetahdex-wallet_linux_unified_0.9.3.2
-  ./CheetahdexWallet &
+  cd ~/cheetahdex-wallet_linux_unified_0.9.4
+  ./CheetahDEX &
   
 ```
-## Cheetahdex Wallet Windows Desktop App
-### Step 1 - fork cheetahdex-wallet-web repo
 
-Windows 11 release was obtained through github action CI/CD method. This repo source code allows you to perform the same binary file release yourself from source code.
+### Issue 2 - Linux Desktop Flickering
 
-To obtain do-it-yourself your own binary compiled installation file for windows 11 desktop app from source code, you will need to fork this github repo first, then in your own forked repo, enable github action. Github action is free service provided by github for every github account. 
+Under remote desktop login into linux desktop running Cheetahdex Desktop App, or some hardware linux desktop, you may encounter annoying flickering or flashing of GUI. This is known bug on flutter and you can fix with below shell script: 
 
+```commandline
+#! /bin/bash
 
-### Step 2 - PR to cheetahdex branch to compile
+export LIBGL_ALWAYS_SOFTWARE=1
+export FLUTTER_LINUX_RENDERER=software
+./CheetahDEX &
+```
 
-This source code under '.github' subfolder has all the code for github action CI/CD compiling method. The compiling will be triggered upon "pull request" to the default `cheetahdex` git branch. Try to play with your branch code and PR to cheetahdex branch to enable github Actions to compile windows desktp app binary release. The final compiled result file is at:
-git Actions -> Building desktop apps -> Build desktop (windows) -> Upload artifact
-
-
-
+This above terminal launching script is provided in the binary release as `launch_cheetahdex.sh`. Run below in linux terminal to fix the flickering issue:
+```commandline
+  bash launch_cheetahdex.sh
+```

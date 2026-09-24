@@ -1,9 +1,0 @@
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Komodo Wallet
-Exec=./CheetahdexWallet
-Icon=./CheetahdexWallet.png
-Categories=Office;Finance;
-Terminal=false
-StartupNotify=true

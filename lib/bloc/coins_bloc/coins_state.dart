@@ -9,15 +9,15 @@ class CoinsState extends Equatable {
     required Map<String, Coin> walletCoins,
     required this.pubkeys,
     required this.prices,
-  })  : coins = _filterExcludedAssets(coins),
-        walletCoins = _filterExcludedAssets(walletCoins);
+  }) : coins = _filterExcludedAssets(coins),
+       walletCoins = _filterExcludedAssets(walletCoins);
 
   factory CoinsState.initial() => CoinsState(
-        coins: const {},
-        walletCoins: const {},
-        pubkeys: const {},
-        prices: const {},
-      );
+    coins: const {},
+    walletCoins: const {},
+    pubkeys: const {},
+    prices: const {},
+  );
 
   final Map<String, Coin> coins;
   final Map<String, Coin> walletCoins;
@@ -25,8 +25,7 @@ class CoinsState extends Equatable {
   final Map<String, CexPrice> prices;
 
   @override
-  List<Object> get props =>
-      [coins, walletCoins, pubkeys, prices];
+  List<Object> get props => [coins, walletCoins, pubkeys, prices];
 
   /// Creates a copy of the current state with the option to update
   /// specific fields.
@@ -41,10 +40,12 @@ class CoinsState extends Equatable {
     // Filtering is required to avoid including "NFT_*" assets in the coins
     // or walletCoins maps. The user should not see these assets, as they are
     // only needed to support the NFT feature.
-    final walletCoinsWithoutExcludedCoins =
-        _filterExcludedAssets(walletCoins ?? this.walletCoins);
-    final coinsWithoutExcludedCoins =
-        _filterExcludedAssets(coins ?? this.coins);
+    final walletCoinsWithoutExcludedCoins = _filterExcludedAssets(
+      walletCoins ?? this.walletCoins,
+    );
+    final coinsWithoutExcludedCoins = _filterExcludedAssets(
+      coins ?? this.coins,
+    );
 
     return CoinsState(
       coins: coinsWithoutExcludedCoins,
@@ -63,7 +64,11 @@ class CoinsState extends Equatable {
     );
   }
 
-  /// Gets the price for a given asset ID
+  /// CEX quote for [assetId] from [prices] (keys: uppercased [AssetSymbol.configSymbol]).
+  ///
+  /// Distinct from [KomodoDefiSdk.marketData] spot pricing: wallet chrome totals use this
+  /// feed with SDK balances (`computeWalletTotalUsd`); sorting and portfolio growth may
+  /// still use SDK prices until a single pricing path exists.
   CexPrice? getPriceForAsset(AssetId assetId) {
     return prices[assetId.symbol.configSymbol.toUpperCase()];
   }
@@ -73,28 +78,34 @@ class CoinsState extends Equatable {
     return getPriceForAsset(assetId)?.change24h?.toDouble();
   }
 
-  /// Calculates the USD price for a given amount of a coin
-  ///
-  /// [amount] The amount of the coin as a string
-  /// [coinAbbr] The abbreviation/symbol of the coin
+  /// Calculates the USD price for a given numeric [amount] of [coinAbbr].
   ///
   /// Returns null if:
   /// - The coin is not found in the state
-  /// - The amount cannot be parsed to a double
   /// - The coin does not have a USD price
   ///
   /// Note: This will be migrated to use the SDK's price functionality in the future.
   /// See the MarketDataManager in the SDK for the new implementation.
-  @Deprecated('Use sdk.prices.fiatPrice(assetId) * amount instead')
-  double? getUsdPriceByAmount(String amount, String coinAbbr) {
+  double? getUsdPriceForAmount(num amount, String coinAbbr) {
     final Coin? coin = coins[coinAbbr];
-    final double? parsedAmount = double.tryParse(amount);
+    final double parsedAmount = amount.toDouble();
     final CexPrice? cexPrice = prices[coinAbbr.toUpperCase()];
     final double? usdPrice = cexPrice?.price?.toDouble();
 
-    if (coin == null || usdPrice == null || parsedAmount == null) {
+    if (coin == null || usdPrice == null) {
       return null;
     }
     return parsedAmount * usdPrice;
+  }
+
+  /// Backward-compatible string overload.
+  @Deprecated(
+    'Use getUsdPriceForAmount(num amount, String coinAbbr) to avoid '
+    'string-parsing bugs from display-formatted values.',
+  )
+  double? getUsdPriceByAmount(String amount, String coinAbbr) {
+    final double? parsedAmount = double.tryParse(amount);
+    if (parsedAmount == null) return null;
+    return getUsdPriceForAmount(parsedAmount, coinAbbr);
   }
 }

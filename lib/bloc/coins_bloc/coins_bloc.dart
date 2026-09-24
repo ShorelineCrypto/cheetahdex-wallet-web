@@ -13,7 +13,6 @@ import 'package:web_dex/bloc/trading_status/trading_status_service.dart';
 import 'package:web_dex/model/cex_price.dart';
 import 'package:web_dex/model/coin.dart';
 import 'package:web_dex/model/wallet.dart';
-import 'package:web_dex/shared/utils/utils.dart';
 
 part 'coins_event.dart';
 part 'coins_state.dart';
@@ -178,7 +177,7 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
     final coin = event.coin;
     final walletCoins = Map<String, Coin>.of(state.walletCoins);
 
-    if (coin.isInactive) {
+    if (coin.isInactive || coin.isSuspended) {
       walletCoins.remove(coin.id.id);
       emit(state.copyWith(walletCoins: walletCoins));
       return;
@@ -208,9 +207,16 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
     // Preserve persistent state fields such as activation state
     final merged = updated.copyWith(state: existing.state);
 
+    final walletCoins = Map<String, Coin>.of(state.walletCoins);
+    if (merged.isActive || merged.isActivating) {
+      walletCoins[assetId] = merged;
+    } else {
+      walletCoins.remove(assetId);
+    }
+
     emit(
       state.copyWith(
-        walletCoins: {...state.walletCoins, assetId: merged},
+        walletCoins: walletCoins,
         coins: {...state.coins, assetId: merged},
       ),
     );
@@ -228,10 +234,16 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
     Emitter<CoinsState> emit,
   ) async {
     _updateBalancesTimer?.cancel();
-    _updateBalancesTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+    _updateBalancesTimer = Timer.periodic(const Duration(minutes: 3), (timer) {
+      final missingWatcherCount = _coinsRepo
+          .countMissingBalanceWatchersForActiveWalletCoins(state.walletCoins);
+      if (missingWatcherCount == 0) {
+        return;
+      }
       if (kDebugElectrumLogs) {
         _log.info(
-          '[POLLING] Triggering periodic balance refresh (every 1 minute)',
+          '[POLLING] Triggering fallback balance refresh (every 3 minutes) '
+          'for $missingWatcherCount active assets without live watchers',
         );
       }
       add(CoinsBalancesRefreshed());
@@ -313,11 +325,15 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
     Emitter<CoinsState> emit,
   ) async {
     try {
-      final prices = await _coinsRepo.fetchCurrentPrices();
-      if (prices == null) {
+      final fetchedPrices = await _coinsRepo.fetchCurrentPrices();
+      if (fetchedPrices == null) {
         _log.severe('Coin prices list empty/null');
         return;
       }
+
+      final prices = Map<String, CexPrice>.unmodifiable(
+        Map<String, CexPrice>.from(fetchedPrices),
+      );
       final didPricesChange = !const MapEquality().equals(state.prices, prices);
       if (!didPricesChange) {
         _log.info('Coin prices list unchanged');
@@ -328,20 +344,19 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
         final map = coins.map((key, coin) {
           // Use configSymbol to lookup for backwards compatibility with the old,
           // string-based price list (and fallback)
-          final price = prices[coin.id.symbol.configSymbol];
+          final price = prices[coin.id.symbol.configSymbol.toUpperCase()];
           if (price != null) {
             return MapEntry(key, coin.copyWith(usdPrice: price));
           }
           return MapEntry(key, coin);
         });
 
-        // .map already returns a new map, so we don't need to create a new map
-        return map.unmodifiable();
+        return Map<String, Coin>.unmodifiable(map);
       }
 
       emit(
         state.copyWith(
-          prices: prices.unmodifiable(),
+          prices: prices,
           coins: updateCoinsWithPrices(state.coins),
           walletCoins: updateCoinsWithPrices(state.walletCoins),
         ),
@@ -536,8 +551,19 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
       );
     }
 
+    // Batch-write all asset IDs to wallet metadata in a single call before
+    // launching parallel activations. This avoids N concurrent read-modify-write
+    // cycles on the same metadata key which caused last-write-wins data loss.
+    await _coinsRepo.addAssetsToWalletMetadata(
+      coinsToActivate.map((asset) => asset.id),
+    );
+
     final enableFutures = coinsToActivate
-        .map((asset) => _coinsRepo.activateAssetsSync([asset]))
+        .map(
+          (asset) => _coinsRepo.activateAssetsSync([
+            asset,
+          ], addToWalletMetadata: false),
+        )
         .toList();
 
     // Ignore the return type here and let the broadcast handle the state updates as
@@ -560,8 +586,9 @@ class CoinsBloc extends Bloc<CoinsEvent, CoinsState> {
       }
 
       try {
-        final saved =
-            await _kdfSdk.activationConfigService.getSavedZhtlc(asset.id);
+        final saved = await _kdfSdk.activationConfigService.getSavedZhtlc(
+          asset.id,
+        );
         if (saved != null) {
           filtered.add(asset);
         } else {
