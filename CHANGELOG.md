@@ -1,3 +1,14 @@
+# Cheetahdex Wallet v0.9.5 Release Notes
+This release packages on the current `cheetahdex` branch update with broader asset support, better user experience particularly for miners of selected supported coins.
+
+## 🚀 New Features
+- **UTXO Automatic Consolidations** enabled in SDK [komodo-defi-sdk-flutter](https://github.com/ShorelineCrypto/komodo-defi-sdk-flutter/commit/5f00000ff5829902fd871f725cd975c94e5b7f4a)
+- **SDK git submodule** updated to above SDK commit enabling UTXO automatic consolidations by default.
+- **10 supported coins** enabled UTXO_merge_param by default at shorelinecrypto [coins repo](https://github.com/ShorelineCrypto/coins/blob/cheetahdex/coins): NENG CHTA LTC LTC-segwit DASH DGB DGB-segwit FIRO KMD PIVX.
+
+
+## 🚀 New Features
+
 # Cheetahdex Wallet v0.9.4 Release Notes
 
 This release packages on the current `cheetahdex` branch update with broader asset support, a stronger web runtime, and a much larger polish pass across the wallet. Highlights include shorelinecrypto version KDF v2.7.0-beta, TRON and SIA flows on top of `komodo-defi-sdk v0.5.0`, Flutter Web WASM support, runtime-loaded legal documents, refreshed wallet and trading surfaces, and the QA/release infrastructure that came out of the documented polish program.

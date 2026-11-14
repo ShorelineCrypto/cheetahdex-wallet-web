@@ -70,6 +70,12 @@ class CoinsRepo {
   final _log = Logger('CoinsRepo');
   static const _unsupportedTrezorSiaMessage =
       'SIA is not supported for Trezor wallets in this release.';
+  static const _utxoMergeDefaultAssetIds = {'NENG', 'CHTA'};
+  static const _utxoMergeParams = {
+    'merge_at': 50,
+    'check_every': 1000,
+    'max_merge_at_once': 40,
+  };
 
   /// { acc: { abbr: address }}, used in Fiat Page
   final Map<String, Map<String, String>> _addressCache = {};
@@ -490,7 +496,9 @@ class CoinsRepo {
           // Use retry with exponential backoff for activation
           await retry<void>(
             () async {
-              final didActivate = await _kdfSdk.ensureAssetActivated(asset);
+              final didActivate = await _kdfSdk.ensureAssetActivated(
+                _withDefaultUtxoMergeParams(asset),
+              );
               if (!didActivate) {
                 throw Exception('Activation failed for ${asset.id.id}');
               }
@@ -580,6 +588,26 @@ class CoinsRepo {
     if (lastActivationException != null) {
       throw lastActivationException;
     }
+  }
+
+  Asset _withDefaultUtxoMergeParams(Asset asset) {
+    final protocol = asset.protocol;
+    if (!_utxoMergeDefaultAssetIds.contains(asset.id.id) ||
+        protocol is! UtxoProtocol ||
+        protocol.config.containsKey('utxo_merge_params')) {
+      return asset;
+    }
+
+    final config = Map<String, dynamic>.from(protocol.config)
+      ..['utxo_merge_params'] = _utxoMergeParams;
+
+    return asset.copyWith(
+      protocol: UtxoProtocol.fromJson(
+        config,
+        subClass: protocol.subClass,
+        supportedProtocols: protocol.supportedProtocols,
+      ),
+    );
   }
 
   /// Adds the given assets (and their parent coins) to wallet metadata.
